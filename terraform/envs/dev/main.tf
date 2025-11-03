@@ -46,7 +46,7 @@ module "ecs" {
 module "route53" {
   source       = "../../modules/route53"
   env          = "dev"
-  domain_name  = "myapp.example.com" # your actual domain
+  domain_name  = "https://vijaychandra.site" # your actual domain
   alb_dns_name = module.ecs.alb_dns_name
   alb_zone_id  = module.ecs.alb_zone_id
 }
