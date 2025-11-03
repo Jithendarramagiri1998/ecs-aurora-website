@@ -31,8 +31,5 @@ variable "db_name" {
 variable "kms_key_arn" {
   description = "KMS Key for encryption"
 }
-variable "env" {
-  description = "Environment name (e.g., dev, staging, prod)"
-  type        = string
-}
+
 
