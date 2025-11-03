@@ -107,22 +107,21 @@ pipeline {
 
             TASK_NAME="dev-app-task"
 
-            # Fetch current task definition JSON
-            TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
+            # Fetch current task definition
+            TASK_DEF=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
 
-            # Extract container definitions and update image URI using jq
-            NEW_TASK_DEF=$(echo $TASK_DEF_JSON | \
-                jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" \
-                   '.taskDefinition | {family: .family, networkMode: .networkMode, taskRoleArn: .taskRoleArn, executionRoleArn: .executionRoleArn, containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)), requiresCompatibilities: .requiresCompatibilities, cpu: .cpu, memory: .memory}')
+            # Update the container image using jq
+            NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '.taskDefinition | {family: .family, networkMode: .networkMode, taskRoleArn: .taskRoleArn, executionRoleArn: .executionRoleArn, containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)), requiresCompatibilities: .requiresCompatibilities, cpu: .cpu, memory: .memory}')
 
-            # Save and register new task definition
+            # Save to a JSON file
             echo $NEW_TASK_DEF > new-task-def.json
 
+            # Register new revision
             aws ecs register-task-definition \
                 --cli-input-json file://new-task-def.json \
                 --region ${AWS_REGION}
 
-            echo "🚀 Updating ECS Service..."
+            echo "🚀 Updating ECS Service with the new task definition..."
             aws ecs update-service \
                 --cluster ${ENV}-ecs-cluster \
                 --service ${ENV}-ecs-service \
@@ -133,6 +132,7 @@ pipeline {
         }
     }
 }
+
         stage('Verify Deployment') {
             steps {
                 script {
