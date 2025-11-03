@@ -23,13 +23,14 @@ pipeline {
         stage('Terraform Init & Validate') {
     steps {
         script {
+            // Define absolute paths
             def terraformRoot = "${env.WORKSPACE}/terraform"
             def backendPath   = "${terraformRoot}/global/backend"
             def envPath       = "${terraformRoot}/envs/${ENV}"
 
             dir(envPath) {
                 sh """
-                if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
+                if ! aws s3api head-bucket --bucket my-terraform-states-1234 2>/dev/null; then
                   echo '🚀 Creating backend S3 & DynamoDB...'
                   cd ${backendPath}
                   terraform init -input=false
@@ -43,10 +44,10 @@ pipeline {
                 // --- Initialize with backend config ---
                 sh """
                 terraform init \
-                  -backend-config="bucket=ecs-aurora-terraform-state" \
+                  -backend-config="bucket=my-terraform-states-1234" \
                   -backend-config="key=${ENV}/terraform.tfstate" \
                   -backend-config="region=us-east-1" \
-                  -backend-config="dynamodb_table=ecs-aurora-tf-locks" \
+                  -backend-config="dynamodb_table=terraform-locks" \
                   -input=false
 
                 terraform validate
