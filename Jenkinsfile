@@ -22,7 +22,8 @@ pipeline {
 
         stage('Terraform Init & Validate') {
     steps {
-        dir('terraform/envs/' + ENV) {  // ✅ directly run inside envs/dev or envs/staging
+        // Directly work inside terraform/envs/dev or terraform/envs/staging
+        dir("terraform/envs/${ENV}") {
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                 script {
                     echo "🧩 Initializing Terraform for ${ENV}..."
@@ -31,24 +32,16 @@ pipeline {
                     sh '''
                     if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
                       echo "🚀 Creating backend S3 & DynamoDB..."
-                      cd ../../global/backend   # ❌ wrong in your case
-                    fi
-                    '''
-
-                    // ✅ FIXED version:
-                    sh '''
-                    if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
-                      echo "🚀 Creating backend S3 & DynamoDB..."
-                      cd ../global/backend
+                      cd ../../global/backend    # ✅ Correct relative path from terraform/envs/dev or staging
                       terraform init -input=false
                       terraform apply -auto-approve
-                      cd - >/dev/null  
+                      cd - >/dev/null
                     else
                       echo "✅ Backend S3 bucket already exists."
                     fi
                     '''
 
-                    // --- Initialize with backend config ---
+                    // --- Initialize with backend configuration ---
                     sh '''
                     terraform init \
                       -backend-config="bucket=ecs-aurora-terraform-state" \
@@ -56,6 +49,7 @@ pipeline {
                       -backend-config="region=us-east-1" \
                       -backend-config="dynamodb_table=ecs-aurora-tf-locks" \
                       -input=false
+
                     terraform validate
                     terraform workspace select ${ENV} || terraform workspace new ${ENV}
                     '''
