@@ -22,27 +22,32 @@ pipeline {
 
         stage('Terraform Init & Validate') {
     steps {
-        // Directly work inside terraform/envs/dev or terraform/envs/staging
-        dir("terraform/envs/${ENV}") {
-            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-                script {
+        script {
+            // Define absolute Terraform path for reliability
+            def terraformRoot = "${env.WORKSPACE}/terraform"
+            def envPath = "${terraformRoot}/envs/${ENV}"
+            def backendPath = "${terraformRoot}/global/backend"
+
+            dir(envPath) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                     echo "🧩 Initializing Terraform for ${ENV}..."
 
                     // --- Auto-bootstrap backend if needed ---
-                    sh '''
+                    sh """
                     if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
-                      echo "🚀 Creating backend S3 & DynamoDB..."
-                      cd ../../global/backend    # ✅ Correct relative path from terraform/envs/dev or staging
+                      echo '🚀 Creating backend S3 & DynamoDB...'
+                      cd ${backendPath}
                       terraform init -input=false
                       terraform apply -auto-approve
-                      cd - >/dev/null
+                      cd -
                     else
-                      echo "✅ Backend S3 bucket already exists."
+                      echo '✅ Backend S3 bucket already exists.'
                     fi
-                    '''
+                    """
 
-                    // --- Initialize with backend configuration ---
-                    sh '''
+                    // --- Initialize with backend config ---
+                    sh """
+                    cd ${envPath}
                     terraform init \
                       -backend-config="bucket=ecs-aurora-terraform-state" \
                       -backend-config="key=${ENV}/terraform.tfstate" \
@@ -52,12 +57,13 @@ pipeline {
 
                     terraform validate
                     terraform workspace select ${ENV} || terraform workspace new ${ENV}
-                    '''
+                    """
                 }
             }
         }
     }
 }
+
         stage('Terraform Plan & Apply Infra') {
             steps {
                 dir("terraform/envs/${params.ENV}") {
