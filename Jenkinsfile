@@ -16,7 +16,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main', credentialsId: 'git', url: 'https://github.com/yourname/ecs-aurora-website.git'
+                git branch: 'main', credentialsId: 'git', url: 'https://github.com/Jithendarramagiri1998/ecs-aurora-website.git'
             }
         }
 
