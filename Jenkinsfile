@@ -21,41 +21,46 @@ pipeline {
         }
 
         stage('Terraform Init & Validate') {
-            steps {
-                script {
-                    def terraformRoot = "${env.WORKSPACE}/terraform"
-                    def backendPath   = "${terraformRoot}/global/backend"
-                    def envPath       = "${terraformRoot}/envs/${ENV}"
+    steps {
+        script {
+            def terraformRoot = "${env.WORKSPACE}/terraform"
+            def backendPath   = "${terraformRoot}/global/backend"
+            def envPath       = "${terraformRoot}/envs/${ENV}"
 
-                    dir(envPath) {
-                        sh """
-                        if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
-                          echo '🚀 Creating backend S3 & DynamoDB...'
-                          cd ../global/backend
-                          terraform init -input=false
-                          terraform apply -auto-approve
-                          cd ../envs/${ENV}
-                        else
-                          echo '✅ Backend S3 bucket already exists.'
-                        fi
-                        """
+            dir(envPath) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+                    sh """
+                    echo "🧩 Initializing Terraform for ${ENV}..."
+                    echo "Current Directory: $(pwd)"
 
-                        // Initialize Terraform with backend config
-                        sh """
-                        terraform init \
-                          -backend-config="bucket=ecs-aurora-terraform-state" \
-                          -backend-config="key=${ENV}/terraform.tfstate" \
-                          -backend-config="region=us-east-1" \
-                          -backend-config="dynamodb_table=ecs-aurora-tf-locks" \
-                          -input=false
+                    # --- Auto-bootstrap backend if not exists ---
+                    if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
+                      echo "🚀 Creating backend S3 & DynamoDB..."
+                      cd ../../global/backend
+                      echo "Moved to: $(pwd)"
+                      terraform init -input=false
+                      terraform apply -auto-approve
+                      cd - >/dev/null
+                    else
+                      echo "✅ Backend S3 bucket already exists."
+                    fi
 
-                        terraform validate
-                        terraform workspace select ${ENV} || terraform workspace new ${ENV}
-                        """
-                    }
+                    # --- Initialize with backend config ---
+                    terraform init \
+                      -backend-config="bucket=ecs-aurora-terraform-state" \
+                      -backend-config="key=${ENV}/terraform.tfstate" \
+                      -backend-config="region=us-east-1" \
+                      -backend-config="dynamodb_table=ecs-aurora-tf-locks" \
+                      -input=false
+
+                    terraform validate
+                    terraform workspace select ${ENV} || terraform workspace new ${ENV}
+                    """
                 }
             }
         }
+    }
+}
 
         stage('Terraform Plan & Apply Infra') {
             steps {
