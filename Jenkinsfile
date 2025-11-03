@@ -8,7 +8,7 @@ pipeline {
     environment {
         AWS_REGION = 'us-east-1'
         AWS_CREDENTIALS = credentials('aws-jenkins-creds')
-        ECR_REPO = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite' 
+        ECR_REPO = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite'
         IMAGE_TAG = "v${BUILD_NUMBER}"
     }
 
@@ -22,12 +22,12 @@ pipeline {
 
         stage('Terraform Init & Validate') {
             steps {
-                dir('terraform') {
+                dir("terraform/envs/${params.ENV}") {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                         sh '''
-                        terraform init -input=false
+                        echo "🧩 Initializing Terraform for ${ENV}..."
+                        terraform init -backend-config=../../global/backend/main.tf -input=false
                         terraform validate
-                        terraform workspace select ${ENV} || terraform workspace new ${ENV}
                         '''
                     }
                 }
@@ -36,10 +36,12 @@ pipeline {
 
         stage('Terraform Plan & Apply Infra') {
             steps {
-                dir('terraform') {
+                dir("terraform/envs/${params.ENV}") {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                         sh '''
+                        echo "📦 Running Terraform Plan for ${ENV}..."
                         terraform plan -input=false -out=tfplan -var="env=${ENV}"
+                        echo "🚀 Applying Terraform Changes..."
                         terraform apply -input=false -auto-approve tfplan
                         '''
                     }
@@ -49,7 +51,8 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                script {
+                    echo "🛠️ Building Docker image..."
                     sh '''
                     cd app
                     docker build -t ${ECR_REPO}:${IMAGE_TAG} .
@@ -62,8 +65,9 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                     sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login --username AWS --password-stdin ${ECR_REPO}
+                    echo "🔐 Logging in to Amazon ECR..."
+                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                    echo "📤 Pushing Docker image to ECR..."
                     docker push ${ECR_REPO}:${IMAGE_TAG}
                     '''
                 }
@@ -74,6 +78,7 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                     sh '''
+                    echo "🚀 Updating ECS Service for ${ENV}..."
                     aws ecs update-service \
                         --cluster ${ENV}-ecs-cluster \
                         --service ${ENV}-web-service \
@@ -87,8 +92,8 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 script {
-                    echo "✅ Deployment completed for ${ENV} environment!"
-                    echo "Website: https://${ENV}.example.com"
+                    echo "✅ Deployment completed for ${params.ENV} environment!"
+                    echo "🌐 Check website URL after Route53 setup: https://${params.ENV}.yourdomain.com"
                 }
             }
         }
@@ -96,10 +101,10 @@ pipeline {
 
     post {
         success {
-            echo "🎉 ${ENV} deployment successful!"
+            echo "🎉 ${params.ENV} deployment successful!"
         }
         failure {
-            echo "❌ Deployment failed. Check logs in Jenkins & CloudWatch."
+            echo "❌ Deployment failed. Check Jenkins logs and CloudWatch for details."
         }
     }
 }
