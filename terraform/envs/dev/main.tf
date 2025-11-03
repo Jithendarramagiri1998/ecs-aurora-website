@@ -65,4 +65,5 @@ module "cloudwatch" {
   ecs_cluster_name = module.ecs.cluster_name
   db_cluster_id    = module.aurora.db_cluster_id
   sns_topic_arn    = module.sns.topic_arn
+  aws_region       = "us-east-1"   # ✅ Add this line
 }
