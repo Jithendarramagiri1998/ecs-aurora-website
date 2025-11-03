@@ -64,7 +64,7 @@ resource "aws_cloudwatch_metric_alarm" "aurora_cpu_high" {
 }
 
 ############################################
-# CloudWatch Dashboard
+# CloudWatch Dashboard (Fixed)
 ############################################
 resource "aws_cloudwatch_dashboard" "ecs_aurora_dashboard" {
   dashboard_name = "${var.env}-monitoring-dashboard"
@@ -81,7 +81,11 @@ resource "aws_cloudwatch_dashboard" "ecs_aurora_dashboard" {
             ["AWS/ECS", "CPUUtilization", "ClusterName", var.ecs_cluster_name],
             ["AWS/ECS", "MemoryUtilization", "ClusterName", var.ecs_cluster_name]
           ],
-          title = "ECS CPU & Memory Utilization"
+          region = var.aws_region,
+          view   = "timeSeries",
+          stat   = "Average",
+          period = 60,
+          title  = "ECS CPU & Memory Utilization"
         }
       },
       {
@@ -92,9 +96,14 @@ resource "aws_cloudwatch_dashboard" "ecs_aurora_dashboard" {
         height = 6,
         properties = {
           metrics = [
-            ["AWS/RDS", "CPUUtilization", "DBClusterIdentifier", var.db_cluster_id]
+            ["AWS/RDS", "CPUUtilization", "DBClusterIdentifier", var.db_cluster_id],
+            ["AWS/RDS", "FreeStorageSpace", "DBClusterIdentifier", var.db_cluster_id]
           ],
-          title = "Aurora CPU Utilization"
+          region = var.aws_region,
+          view   = "timeSeries",
+          stat   = "Average",
+          period = 300,
+          title  = "Aurora DB Health Metrics"
         }
       }
     ]
