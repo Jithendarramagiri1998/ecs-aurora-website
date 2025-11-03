@@ -30,13 +30,13 @@ pipeline {
             dir(envPath) {
                 sh """
                 if ! aws s3api head-bucket --bucket my-terraform-states-1234 2>/dev/null; then
-                  echo '🚀 Creating backend S3 & DynamoDB...'
+                  echo 'ðŸš€ Creating backend S3 & DynamoDB...'
                   cd ${backendPath}
                   terraform init -input=false
                   terraform apply -auto-approve
                   cd ${envPath}
                 else
-                  echo '✅ Backend S3 bucket already exists.'
+                  echo 'âœ… Backend S3 bucket already exists.'
                 fi
                 """
 
@@ -60,9 +60,9 @@ pipeline {
                 dir("terraform/envs/${params.ENV}") {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                         sh '''
-                        echo "📦 Running Terraform Plan for ${ENV}..."
+                        echo "ðŸ“¦ Running Terraform Plan for ${ENV}..."
                         terraform plan -input=false -out=tfplan -var="env=${ENV}"
-                        echo "🚀 Applying Terraform Changes..."
+                        echo "ðŸš€ Applying Terraform Changes..."
                         terraform apply -input=false -auto-approve tfplan
                         terraform destroy -auto-approve -input=false
                         '''
@@ -74,14 +74,14 @@ pipeline {
         stage('Build Docker Image') {
     steps {
         script {
-            echo "🛠️ Building Docker image with app code..."
+            echo "ðŸ› ï¸ Building Docker image with app code..."
             sh '''
             cd app
-            echo "📂 Checking files inside app/"
+            echo "ðŸ“‚ Checking files inside app/"
             ls -l
-            echo "🐳 Building Docker image..."
+            echo "ðŸ³ Building Docker image..."
             docker build -t ${ECR_REPO}:${IMAGE_TAG} .
-            echo "✅ Docker image built successfully!"
+            echo "âœ… Docker image built successfully!"
             '''
         }
     }
@@ -91,9 +91,9 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                     sh '''
-                    echo "🔐 Logging in to Amazon ECR..."
+                    echo "ðŸ” Logging in to Amazon ECR..."
                     aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
-                    echo "📤 Pushing Docker image to ECR..."
+                    echo "ðŸ“¤ Pushing Docker image to ECR..."
                     docker push ${ECR_REPO}:${IMAGE_TAG}
                     '''
                 }
@@ -104,7 +104,7 @@ pipeline {
     steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
             sh '''
-            echo "🚀 Registering new ECS task definition revision with updated image..."
+            echo "ðŸš€ Registering new ECS task definition revision with updated image..."
 
             TASK_NAME="dev-app-task"
 
@@ -131,7 +131,7 @@ pipeline {
                 --cli-input-json file://new-task-def.json \
                 --region ${AWS_REGION}
 
-            echo "🚀 Updating ECS Service with latest task definition..."
+            echo "ðŸš€ Updating ECS Service with latest task definition..."
             aws ecs update-service \
                 --cluster ${ENV}-ecs-cluster \
                 --service ${ENV}-ecs-service \
@@ -144,8 +144,8 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 script {
-                    echo "✅ Deployment completed for ${params.ENV} environment!"
-                    echo "🌐 Check website URL after Route53 setup: https://${params.ENV}.yourdomain.com"
+                    echo "âœ… Deployment completed for ${params.ENV} environment!"
+                    echo "ðŸŒ Check website URL after Route53 setup: https://${params.ENV}.yourdomain.com"
                 }
             }
         }
@@ -153,10 +153,10 @@ pipeline {
 
     post {
         success {
-            echo "🎉 ${params.ENV} deployment successful!"
+            echo "ðŸŽ‰ ${params.ENV} deployment successful!"
         }
         failure {
-            echo "❌ Deployment failed. Check Jenkins logs and CloudWatch for details."
+            echo "âŒ Deployment failed. Check Jenkins logs and CloudWatch for details."
         }
     }
 }
