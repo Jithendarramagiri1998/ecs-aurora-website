@@ -71,16 +71,20 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-            steps {
-                script {
-                    echo "🛠️ Building Docker image..."
-                    sh '''
-                    cd app
-                    docker build -t ${ECR_REPO}:${IMAGE_TAG} .
-                    '''
-                }
-            }
+    steps {
+        script {
+            echo "🛠️ Building Docker image with app code..."
+            sh '''
+            cd app
+            echo "📂 Checking files inside app/"
+            ls -l
+            echo "🐳 Building Docker image..."
+            docker build -t ${ECR_REPO}:${IMAGE_TAG} .
+            echo "✅ Docker image built successfully!"
+            '''
         }
+    }
+}
 
         stage('Push Docker Image to ECR') {
             steps {
