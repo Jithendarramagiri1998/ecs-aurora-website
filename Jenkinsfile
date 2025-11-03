@@ -100,19 +100,34 @@ pipeline {
         }
 
         stage('Deploy to ECS') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-                    sh '''
-                    echo "🚀 Updating ECS Service for ${ENV}..."
-                    aws ecs update-service \
-                        --cluster ${ENV}-ecs-cluster \
-                        --service ${ENV}-ecs-service \
-                        --force-new-deployment \
-                        --region ${AWS_REGION}
-                    '''
-                }
-            }
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+            sh '''
+            echo "🚀 Registering new ECS task definition revision with updated image..."
+
+            # Get current task definition
+            TASK_DEF=$(aws ecs describe-task-definition --task-definition ${ENV}-task)
+
+            # Update image in container definition
+            NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '.taskDefinition.containerDefinitions[0].image = $IMAGE')
+
+            # Register new revision
+            echo $NEW_TASK_DEF > new-task-def.json
+            aws ecs register-task-definition \
+                --cli-input-json file://new-task-def.json \
+                --region ${AWS_REGION}
+
+            echo "🚀 Updating ECS Service..."
+            aws ecs update-service \
+                --cluster ${ENV}-ecs-cluster \
+                --service ${ENV}-ecs-service \
+                --force-new-deployment \
+                --region ${AWS_REGION}
+            '''
         }
+    }
+}
+
 
         stage('Verify Deployment') {
             steps {
