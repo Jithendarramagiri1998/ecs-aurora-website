@@ -21,48 +21,41 @@ pipeline {
         }
 
         stage('Terraform Init & Validate') {
-    steps {
-        script {
-            // Define absolute paths
-            def terraformRoot = "${env.WORKSPACE}/terraform"
-            def envPath = "${terraformRoot}/envs/${ENV}"
-            def backendPath = "${terraformRoot}/global/backend"
+            steps {
+                script {
+                    def terraformRoot = "${env.WORKSPACE}/terraform"
+                    def backendPath   = "${terraformRoot}/global/backend"
+                    def envPath       = "${terraformRoot}/envs/${ENV}"
 
-            dir(envPath) {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-                    echo "🧩 Initializing Terraform for ${ENV}..."
+                    dir(envPath) {
+                        sh """
+                        if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
+                          echo '🚀 Creating backend S3 & DynamoDB...'
+                          cd ../global/backend
+                          terraform init -input=false
+                          terraform apply -auto-approve
+                          cd ../envs/${ENV}
+                        else
+                          echo '✅ Backend S3 bucket already exists.'
+                        fi
+                        """
 
-                    // --- Auto-bootstrap backend if needed ---
-                    sh """
-                    if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
-                      echo '🚀 Creating backend S3 & DynamoDB...'
-                      cd ${backendPath}
-                      terraform init -input=false
-                      terraform apply -auto-approve
-                      cd ${envPath}
-                    else
-                      echo '✅ Backend S3 bucket already exists.'
-                    fi
-                    """
+                        // Initialize Terraform with backend config
+                        sh """
+                        terraform init \
+                          -backend-config="bucket=ecs-aurora-terraform-state" \
+                          -backend-config="key=${ENV}/terraform.tfstate" \
+                          -backend-config="region=us-east-1" \
+                          -backend-config="dynamodb_table=ecs-aurora-tf-locks" \
+                          -input=false
 
-                    // --- Initialize with backend config ---
-                    sh """
-                    terraform init \
-                      -backend-config="bucket=ecs-aurora-terraform-state" \
-                      -backend-config="key=${ENV}/terraform.tfstate" \
-                      -backend-config="region=us-east-1" \
-                      -backend-config="dynamodb_table=ecs-aurora-tf-locks" \
-                      -input=false
-
-                    terraform validate
-                    terraform workspace select ${ENV} || terraform workspace new ${ENV}
-                    """
+                        terraform validate
+                        terraform workspace select ${ENV} || terraform workspace new ${ENV}
+                        """
+                    }
                 }
             }
         }
-    }
-}
-
 
         stage('Terraform Plan & Apply Infra') {
             steps {
