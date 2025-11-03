@@ -23,7 +23,7 @@ pipeline {
         stage('Terraform Init & Validate') {
     steps {
         script {
-            // Define absolute Terraform path for reliability
+            // Define absolute paths
             def terraformRoot = "${env.WORKSPACE}/terraform"
             def envPath = "${terraformRoot}/envs/${ENV}"
             def backendPath = "${terraformRoot}/global/backend"
@@ -39,7 +39,7 @@ pipeline {
                       cd ${backendPath}
                       terraform init -input=false
                       terraform apply -auto-approve
-                      cd -
+                      cd ${envPath}
                     else
                       echo '✅ Backend S3 bucket already exists.'
                     fi
@@ -47,7 +47,6 @@ pipeline {
 
                     // --- Initialize with backend config ---
                     sh """
-                    cd ${envPath}
                     terraform init \
                       -backend-config="bucket=ecs-aurora-terraform-state" \
                       -backend-config="key=${ENV}/terraform.tfstate" \
@@ -63,6 +62,7 @@ pipeline {
         }
     }
 }
+
 
         stage('Terraform Plan & Apply Infra') {
             steps {
