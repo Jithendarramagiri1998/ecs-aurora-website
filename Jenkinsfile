@@ -102,7 +102,7 @@ pipeline {
                     echo "🚀 Updating ECS Service for ${ENV}..."
                     aws ecs update-service \
                         --cluster ${ENV}-ecs-cluster \
-                        --service ${ENV}-web-service \
+                        --service ${ENV}-ecs-service \
                         --force-new-deployment \
                         --region ${AWS_REGION}
                     '''
