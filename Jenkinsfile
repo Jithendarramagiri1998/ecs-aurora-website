@@ -22,7 +22,7 @@ pipeline {
 
         stage('Terraform Init & Validate') {
     steps {
-        dir('terraform') {
+        dir('terraform/envs/' + ENV) {  // ✅ directly run inside envs/dev or envs/staging
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                 script {
                     echo "🧩 Initializing Terraform for ${ENV}..."
@@ -31,10 +31,18 @@ pipeline {
                     sh '''
                     if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
                       echo "🚀 Creating backend S3 & DynamoDB..."
-                      cd ../../global/backend
+                      cd ../../global/backend   # ❌ wrong in your case
+                    fi
+                    '''
+
+                    // ✅ FIXED version:
+                    sh '''
+                    if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
+                      echo "🚀 Creating backend S3 & DynamoDB..."
+                      cd ../../global/backend 2>/dev/null || cd ../global/backend
                       terraform init -input=false
                       terraform apply -auto-approve
-                      cd -  # return to terraform dir
+                      cd - >/dev/null  # return to envs/dev
                     else
                       echo "✅ Backend S3 bucket already exists."
                     fi
