@@ -23,7 +23,6 @@ pipeline {
         stage('Terraform Init & Validate') {
     steps {
         script {
-            // Define absolute paths
             def terraformRoot = "${env.WORKSPACE}/terraform"
             def backendPath   = "${terraformRoot}/global/backend"
             def envPath       = "${terraformRoot}/envs/${ENV}"
@@ -41,7 +40,6 @@ pipeline {
                 fi
                 """
 
-                // --- Initialize with backend config ---
                 sh """
                 terraform init \
                   -backend-config="bucket=my-terraform-states-1234" \
@@ -57,8 +55,6 @@ pipeline {
         }
     }
 }
-
-
         stage('Terraform Plan & Apply Infra') {
             steps {
                 dir("terraform/envs/${params.ENV}") {
