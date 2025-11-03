@@ -42,16 +42,16 @@ resource "aws_db_subnet_group" "aurora_subnet_group" {
 # --------------------------------------------
 # Secrets Manager for DB Credentials
 # --------------------------------------------
-resource "random_password" "db_password" {
-  length           = 16
-  special          = true
-  override_special = "_%@"
+resource "random_string" "suffix" {
+  length  = 4
+  special = false
 }
 
 resource "aws_secretsmanager_secret" "db_secret" {
-  name = "${var.project_name}-db-secret-${var.env}"
+  name        = "${var.project_name}-db-secret-${var.env}-${random_string.suffix.result}"
   description = "Aurora DB credentials"
 }
+
 
 resource "aws_secretsmanager_secret_version" "db_secret_value" {
   secret_id     = aws_secretsmanager_secret.db_secret.id
