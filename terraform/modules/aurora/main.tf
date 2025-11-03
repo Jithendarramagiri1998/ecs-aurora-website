@@ -39,19 +39,29 @@ resource "aws_db_subnet_group" "aurora_subnet_group" {
   }
 }
 
-# --------------------------------------------
-# Secrets Manager for DB Credentials
-# --------------------------------------------
+############################################
+# Random Generators
+############################################
+# Generates a short random suffix for unique secret names
 resource "random_string" "suffix" {
   length  = 4
   special = false
 }
 
+# Generates a secure random DB password
+resource "random_password" "db_password" {
+  length           = 16
+  special          = true
+  override_special = "_%@"
+}
+
+############################################
+# AWS Secrets Manager for DB Credentials
+############################################
 resource "aws_secretsmanager_secret" "db_secret" {
   name        = "${var.project_name}-db-secret-${var.env}-${random_string.suffix.result}"
   description = "Aurora DB credentials"
 }
-
 
 resource "aws_secretsmanager_secret_version" "db_secret_value" {
   secret_id     = aws_secretsmanager_secret.db_secret.id
@@ -60,6 +70,7 @@ resource "aws_secretsmanager_secret_version" "db_secret_value" {
     password = random_password.db_password.result
   })
 }
+
 
 # --------------------------------------------
 # Aurora Cluster
