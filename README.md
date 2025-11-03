@@ -520,6 +520,29 @@ You’ll see:
 
 > 🚀 Deployed via Jenkins on AWS ECS Fargate
 
+# ⚠️ Notes on Deployment Issues & Fixes
+
+During manual execution of deployment scripts using `terraform apply`, the following issues may occur:
+
+## 🧩 Common Issues & Fixes
+
+1. **Route53 – Custom Domain Required**  
+   - The Route53 configuration requires a **custom domain name**.  
+   - Update the Terraform variable or configuration file with your registered domain before running `terraform apply`.
+
+2. **KMS Key Generation**  
+   - A **KMS key** is needed for encrypting sensitive data or logs.  
+   - Ensure you create and reference a KMS key in your Terraform setup.
+
+# **ECS Configuration for Jenkins (ECR Section)**  
+   - In the Jenkinsfile, make sure ECS details (cluster and service) are defined.  
+   - Add the ECS configuration properly to allow Jenkins to deploy the image pushed to ECR.
+
+## ✅ Recommendation
+
+If you encounter any additional issues during execution or deployment, note them down and address them in your Terraform modules or Jenkins pipeline configuration.  
+Always re-run the pipeline after fixing errors to verify successful deployment.
+
 ---
 ## 👨‍💻 **Author**
 
