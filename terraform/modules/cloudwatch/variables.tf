@@ -1,3 +1,8 @@
+variable "aws_region" {
+  description = "AWS region where resources will be created"
+  type        = string
+}
+
 variable "env" {
   description = "Environment name (dev/staging)"
   type        = string
