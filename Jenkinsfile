@@ -21,19 +21,41 @@ pipeline {
         }
 
         stage('Terraform Init & Validate') {
-            steps {
-                dir("terraform/envs/${params.ENV}") {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-                        sh '''
-                        echo "🧩 Initializing Terraform for ${ENV}..."
-                        terraform init -backend-config=../../global/backend/main.tf -input=false
-                        terraform validate
-                        '''
-                    }
+    steps {
+        dir('terraform') {
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+                script {
+                    echo "🧩 Initializing Terraform for ${ENV}..."
+
+                    // --- Auto-bootstrap backend if needed ---
+                    sh '''
+                    if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
+                      echo "🚀 Creating backend S3 & DynamoDB..."
+                      cd ../../global/backend
+                      terraform init -input=false
+                      terraform apply -auto-approve
+                      cd -  # return to terraform dir
+                    else
+                      echo "✅ Backend S3 bucket already exists."
+                    fi
+                    '''
+
+                    // --- Initialize with backend config ---
+                    sh '''
+                    terraform init \
+                      -backend-config="bucket=ecs-aurora-terraform-state" \
+                      -backend-config="key=${ENV}/terraform.tfstate" \
+                      -backend-config="region=us-east-1" \
+                      -backend-config="dynamodb_table=ecs-aurora-tf-locks" \
+                      -input=false
+                    terraform validate
+                    terraform workspace select ${ENV} || terraform workspace new ${ENV}
+                    '''
                 }
             }
         }
-
+    }
+}
         stage('Terraform Plan & Apply Infra') {
             steps {
                 dir("terraform/envs/${params.ENV}") {
