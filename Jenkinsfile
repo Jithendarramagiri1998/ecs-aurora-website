@@ -8,7 +8,7 @@ pipeline {
     environment {
         AWS_REGION = 'us-east-1'
         AWS_CREDENTIALS = credentials('aws-jenkins-creds')
-        ECR_REPO = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite'
+        ECR_REPO = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite' #your ecr repo
         IMAGE_TAG = "v${BUILD_NUMBER}"
     }
 
