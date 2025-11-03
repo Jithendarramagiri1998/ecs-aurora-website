@@ -105,14 +105,19 @@ pipeline {
             sh '''
             echo "🚀 Registering new ECS task definition revision with updated image..."
 
-            # Get current task definition
-            TASK_DEF=$(aws ecs describe-task-definition --task-definition ${ENV}-task)
+            TASK_NAME="dev-app-task"
 
-            # Update image in container definition
-            NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '.taskDefinition.containerDefinitions[0].image = $IMAGE')
+            # Fetch current task definition JSON
+            TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
 
-            # Register new revision
+            # Extract container definitions and update image URI using jq
+            NEW_TASK_DEF=$(echo $TASK_DEF_JSON | \
+                jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" \
+                   '.taskDefinition | {family: .family, networkMode: .networkMode, taskRoleArn: .taskRoleArn, executionRoleArn: .executionRoleArn, containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)), requiresCompatibilities: .requiresCompatibilities, cpu: .cpu, memory: .memory}')
+
+            # Save and register new task definition
             echo $NEW_TASK_DEF > new-task-def.json
+
             aws ecs register-task-definition \
                 --cli-input-json file://new-task-def.json \
                 --region ${AWS_REGION}
@@ -121,14 +126,13 @@ pipeline {
             aws ecs update-service \
                 --cluster ${ENV}-ecs-cluster \
                 --service ${ENV}-ecs-service \
+                --task-definition $TASK_NAME \
                 --force-new-deployment \
                 --region ${AWS_REGION}
             '''
         }
     }
 }
-
-
         stage('Verify Deployment') {
             steps {
                 script {
