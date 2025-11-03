@@ -32,15 +32,15 @@ pipeline {
                     sh """
                     echo "🧩 Initializing Terraform for ${ENV}..."
                     echo "Current Directory: $(pwd)"
+                    echo "Backend Path: ${backendPath}"
 
                     # --- Auto-bootstrap backend if not exists ---
                     if ! aws s3api head-bucket --bucket ecs-aurora-terraform-state 2>/dev/null; then
                       echo "🚀 Creating backend S3 & DynamoDB..."
-                      cd ../../global/backend
-                      echo "Moved to: $(pwd)"
+                      cd ${backendPath}
                       terraform init -input=false
                       terraform apply -auto-approve
-                      cd - >/dev/null
+                      cd ${envPath}
                     else
                       echo "✅ Backend S3 bucket already exists."
                     fi
