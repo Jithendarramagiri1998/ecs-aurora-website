@@ -105,34 +105,42 @@ pipeline {
             sh '''
             echo "🚀 Registering new ECS task definition revision with updated image..."
 
+            # Correct ECS task definition name
             TASK_NAME="dev-app-task"
 
-            # Fetch current task definition
+            # Describe current task definition
             TASK_DEF=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
 
-            # Update the container image using jq
-            NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '.taskDefinition | {family: .family, networkMode: .networkMode, taskRoleArn: .taskRoleArn, executionRoleArn: .executionRoleArn, containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)), requiresCompatibilities: .requiresCompatibilities, cpu: .cpu, memory: .memory}')
+            # Update container image reference to the new ECR image
+            NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" \
+                '.taskDefinition | {
+                    family: .family,
+                    networkMode: .networkMode,
+                    taskRoleArn: .taskRoleArn,
+                    executionRoleArn: .executionRoleArn,
+                    containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)),
+                    requiresCompatibilities: .requiresCompatibilities,
+                    cpu: .cpu,
+                    memory: .memory
+                }')
 
-            # Save to a JSON file
             echo $NEW_TASK_DEF > new-task-def.json
 
-            # Register new revision
+            # Register the new revision
             aws ecs register-task-definition \
                 --cli-input-json file://new-task-def.json \
                 --region ${AWS_REGION}
 
-            echo "🚀 Updating ECS Service with the new task definition..."
+            echo "🚀 Updating ECS service to use the new task definition..."
             aws ecs update-service \
                 --cluster ${ENV}-ecs-cluster \
                 --service ${ENV}-ecs-service \
-                --task-definition $TASK_NAME \
                 --force-new-deployment \
                 --region ${AWS_REGION}
             '''
         }
     }
 }
-
         stage('Verify Deployment') {
             steps {
                 script {
