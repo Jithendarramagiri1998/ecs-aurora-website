@@ -98,7 +98,7 @@ resource "aws_rds_cluster" "aurora_cluster" {
   db_subnet_group_name    = aws_db_subnet_group.aurora_subnet_group.name
   vpc_security_group_ids  = [aws_security_group.aurora_sg.id]
   storage_encrypted       = true
-  kms_key_id              = var.kms_key_arn
+  kms_key_id              = aws_kms_key.aurora.arn
   backup_retention_period = 7
   preferred_backup_window = "04:00-05:00"
   deletion_protection     = false
