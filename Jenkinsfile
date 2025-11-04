@@ -64,7 +64,7 @@ pipeline {
                         terraform plan -input=false -out=tfplan -var="env=${ENV}"
                         echo "ðŸš€ Applying Terraform Changes..."
                         terraform apply -input=false -auto-approve tfplan
-                        terraform destroy -auto-approve -input=false
+                        
                         '''
                     }
                 }
