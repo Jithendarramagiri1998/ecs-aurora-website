@@ -29,16 +29,17 @@ module "aurora" {
 # ECS Module
 module "ecs" {
   source             = "../../modules/ecs"
-  env                = "dev"                              # ✅ Added
+  env                = var.env
   vpc_id             = module.vpc.vpc_id
-  public_subnet_ids  = module.vpc.public_subnet_ids        # ✅ Added
+  public_subnet_ids  = module.vpc.public_subnet_ids
   private_subnet_ids = module.vpc.private_app_subnet_ids
   container_image    = "nginx:latest"
-  db_host            = module.aurora.aurora_endpoint
-  db_name            = "appdb"
-  db_username        = "admin"
-  db_password        = "MySecurePassword123!"
-  
+
+  # Temporarily remove Aurora dependency to prevent circular reference
+  db_host     = ""  # We’ll update this after Aurora is applied
+  db_name     = "appdb"
+  db_username = "admin"
+  db_password = "MySecurePassword123!"
 }
 
 # Route53 DNS for dev environment
