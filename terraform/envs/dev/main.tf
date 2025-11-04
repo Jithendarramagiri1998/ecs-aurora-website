@@ -29,7 +29,9 @@ module "aurora" {
 # ECS Module
 module "ecs" {
   source             = "../../modules/ecs"
+  env                = "dev"                              # ✅ Added
   vpc_id             = module.vpc.vpc_id
+  public_subnet_ids  = module.vpc.public_subnet_ids        # ✅ Added
   private_subnet_ids = module.vpc.private_app_subnet_ids
   container_image    = "nginx:latest"
   db_host            = module.aurora.aurora_endpoint
@@ -38,6 +40,7 @@ module "ecs" {
   db_password        = "MySecurePassword123!"
   
 }
+
 # Route53 DNS for dev environment
 module "route53" {
   source       = "../../modules/route53"
