@@ -19,7 +19,7 @@ module "vpc" {
 module "aurora" {
   source             = "../../modules/aurora"
   vpc_id             = module.vpc.vpc_id
-  private_db_subnets = module.vpc.private_subnets
+  private_db_subnets = module.vpc.private_db_subnet_ids
   ecs_sg_id          = module.ecs.ecs_sg_id   # ✅ Fixed line
   kms_key_arn        = aws_kms_key.aurora.arn
   env                = var.env
