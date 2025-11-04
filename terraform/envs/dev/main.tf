@@ -5,8 +5,8 @@ provider "aws" {
 module "vpc" {
   source = "../../modules/vpc"
 
-  project_name        = "ecs-aurora"
-  env                 = "dev"
+  project_name        = var.project_name
+  env                 = var.env
   vpc_cidr            = "10.0.0.0/16"
   azs                 = ["us-east-1a", "us-east-1b"]
   public_subnets      = ["10.0.1.0/24", "10.0.2.0/24"]
