@@ -1,8 +1,11 @@
 variable "env" {
   description = "Environment name (dev, staging, prod)"
   type        = string
+  default     = "dev"
 }
+
 variable "project_name" {
+  description = "Project name"
   type        = string
-  description = "Name of the project"
+  default     = "ecs-aurora"
 }
