@@ -36,7 +36,7 @@ module "ecs" {
   db_name            = "appdb"
   db_username        = "admin"
   db_password        = "MySecurePassword123!"
-  ecs_sg_id          = aws_security_group.ecs_sg.id  # ✅ pass same SG
+  
 }
 # Route53 DNS for dev environment
 module "route53" {
