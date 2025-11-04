@@ -20,7 +20,7 @@ module "aurora" {
   source             = "../../modules/aurora"
   vpc_id             = module.vpc.vpc_id
   private_db_subnets = module.vpc.private_db_subnet_ids
-  ecs_sg_id          = module.ecs.ecs_sg_id   # ✅ Fixed line
+  ecs_sg_id          = module.ecs.ecs_sg_id
   kms_key_arn        = aws_kms_key.aurora.arn
   env                = var.env
   project_name       = var.project_name
@@ -45,8 +45,8 @@ module "ecs" {
 # Route53 DNS for dev environment
 module "route53" {
   source       = "../../modules/route53"
-  env          = "dev"
-  domain_name  = "https://vijaychandra.site" # your actual domain
+  env          = var.env
+  domain_name  = "vijaychandra.site"
   alb_dns_name = module.ecs.alb_dns_name
   alb_zone_id  = module.ecs.alb_zone_id
 }
@@ -54,16 +54,16 @@ module "route53" {
 # SNS Alerts
 module "sns" {
   source      = "../../modules/sns"
-  env         = "dev"
+  env         = var.env
   alert_email = "alerts@mydomain.com"
 }
 
 # CloudWatch Monitoring
 module "cloudwatch" {
   source           = "../../modules/cloudwatch"
-  env              = "dev"
+  env              = var.env
   ecs_cluster_name = module.ecs.cluster_name
   db_cluster_id    = module.aurora.db_cluster_id
   sns_topic_arn    = module.sns.topic_arn
-  aws_region       = "us-east-1"   # ✅ Add this line
+  aws_region       = "us-east-1"
 }
