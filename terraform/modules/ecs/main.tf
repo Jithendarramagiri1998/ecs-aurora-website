@@ -42,15 +42,15 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
 # Security Group for ECS
 ###############################################
 resource "aws_security_group" "ecs_sg" {
-  name        = "${var.env}-ecs-sg"
-  description = "Allow inbound traffic from ALB"
-  vpc_id      = var.vpc_id
+  name        = "ecs-sg-${var.env}"
+  description = "Allow ECS traffic"
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -61,11 +61,9 @@ resource "aws_security_group" "ecs_sg" {
   }
 
   tags = {
-    Name        = "${var.env}-ecs-sg"
-    Environment = var.env
+    Name = "ecs-sg-${var.env}"
   }
 }
-
 ###############################################
 # Application Load Balancer
 ###############################################
