@@ -28,6 +28,10 @@ variable "db_username" {
 variable "db_name" {
   default = "appdb"
 }
+variable "kms_key_arn" {
+  description = "KMS key ARN for Aurora encryption"
+  type        = string
+}
 
 
 
