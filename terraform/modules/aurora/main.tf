@@ -1,5 +1,16 @@
 # modules/aurora/main.tf
 
+############################################
+# KMS Key for Aurora Encryption
+############################################
+resource "aws_kms_key" "aurora" {
+  description             = "KMS key for Aurora DB encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags = {
+    Name = "${var.project_name}-aurora-kms-${var.env}"
+  }
+}
 # --------------------------------------------
 # Security Group for Aurora DB
 # --------------------------------------------
