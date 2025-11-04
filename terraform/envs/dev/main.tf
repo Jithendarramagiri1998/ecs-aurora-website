@@ -2,6 +2,23 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# --------------------------------------------------------
+# Create a KMS key for Aurora DB encryption
+# --------------------------------------------------------
+resource "aws_kms_key" "aurora" {
+  description             = "KMS key for Aurora DB encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = {
+    Name        = "${var.project_name}-aurora-kms-${var.env}"
+    Environment = var.env
+  }
+}
+
+# --------------------------------------------------------
+# VPC Module
+# --------------------------------------------------------
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -14,20 +31,9 @@ module "vpc" {
   private_db_subnets  = ["10.0.5.0/24", "10.0.6.0/24"]
 }
 
-# Aurora Database Module
-# Aurora Module
-module "aurora" {
-  source              = "../../modules/aurora"
-  project_name        = var.project_name
-  env                 = var.env
-  vpc_id              = module.vpc.vpc_id
-  private_db_subnets  = module.vpc.private_db_subnet_ids
-  ecs_sg_id           = module.ecs.ecs_sg_id
-  db_password         = var.db_password
-  kms_key_arn         = aws_kms_key.aurora.arn   # ✅ Correct argument name
-}
-
+# --------------------------------------------------------
 # ECS Module
+# --------------------------------------------------------
 module "ecs" {
   source             = "../../modules/ecs"
   env                = var.env
@@ -36,14 +42,30 @@ module "ecs" {
   private_subnet_ids = module.vpc.private_app_subnet_ids
   container_image    = "nginx:latest"
 
-  # Temporarily remove Aurora dependency to prevent circular reference
-  db_host     = ""  # We’ll update this after Aurora is applied
+  # Temporarily remove Aurora dependency to avoid circular reference
+  db_host     = ""  
   db_name     = "appdb"
   db_username = "admin"
   db_password = "MySecurePassword123!"
 }
 
-# Route53 DNS for dev environment
+# --------------------------------------------------------
+# Aurora Module
+# --------------------------------------------------------
+module "aurora" {
+  source              = "../../modules/aurora"
+  project_name        = var.project_name
+  env                 = var.env
+  vpc_id              = module.vpc.vpc_id
+  private_db_subnets  = module.vpc.private_db_subnet_ids
+  ecs_sg_id           = module.ecs.ecs_sg_id
+  db_password         = var.db_password
+  kms_key_arn         = aws_kms_key.aurora.arn  # ✅ now valid
+}
+
+# --------------------------------------------------------
+# Route53
+# --------------------------------------------------------
 module "route53" {
   source       = "../../modules/route53"
   env          = var.env
@@ -52,14 +74,18 @@ module "route53" {
   alb_zone_id  = module.ecs.alb_zone_id
 }
 
-# SNS Alerts
+# --------------------------------------------------------
+# SNS
+# --------------------------------------------------------
 module "sns" {
   source      = "../../modules/sns"
   env         = var.env
   alert_email = "alerts@mydomain.com"
 }
 
-# CloudWatch Monitoring
+# --------------------------------------------------------
+# CloudWatch
+# --------------------------------------------------------
 module "cloudwatch" {
   source           = "../../modules/cloudwatch"
   env              = var.env
