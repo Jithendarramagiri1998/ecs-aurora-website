@@ -17,7 +17,7 @@ module "vpc" {
 # Aurora Database Module
 # Aurora Module
 module "aurora" {
-  source              = "./modules/aurora"
+  source              = "../../modules/aurora"
   project_name        = var.project_name
   env                 = var.env
   vpc_id              = module.vpc.vpc_id
