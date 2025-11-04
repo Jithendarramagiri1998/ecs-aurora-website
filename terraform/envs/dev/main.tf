@@ -19,7 +19,7 @@ module "vpc" {
 module "aurora" {
   source             = "../../modules/aurora"
   vpc_id             = module.vpc.vpc_id
-  private_db_subnets = module.vpc.private_db_subnets
+  private_db_subnets = module.vpc.private_db_subnet_ids
   ecs_sg_id          = aws_security_group.ecs_sg.id  # ✅ now from root
   project_name       = "myapp"
   env                = "dev"
