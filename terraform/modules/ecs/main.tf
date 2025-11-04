@@ -69,9 +69,8 @@ resource "aws_security_group" "ecs_sg" {
 ###############################################
 resource "aws_security_group" "alb_sg" {
   name        = "${var.env}-alb-sg"
-  description = "Allow HTTP inbound"
+  description = "Allow inbound HTTP and outbound traffic for ECS/Aurora"
   vpc_id      = var.vpc_id
-  description = "Allow ECS outbound to Aurora"
 
   ingress {
     from_port   = 80
