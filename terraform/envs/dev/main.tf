@@ -15,34 +15,27 @@ module "vpc" {
 }
 
 # Aurora Database Module
+# Aurora Module
 module "aurora" {
-  source = "../../modules/aurora"
-
-  project_name       = "ecs-aurora"
-  env                = "dev"
+  source             = "../../modules/aurora"
   vpc_id             = module.vpc.vpc_id
-  private_db_subnets = module.vpc.private_db_subnet_ids # ✅ correct output name
-  ecs_sg_id          = module.ecs.ecs_sg_id        # Replace after ECS SG creation
-  kms_key_arn        = "arn:aws:kms:us-east-1:141559732042:key/mrk-4adac1a49f484a4f87354fd6b5574bf9"  # yoours kms_key_arn
-
-  db_username = "admin"
-  db_name     = "webappdb"
-
-depends_on = [module.ecs]  # ✅ ensures ECS SG created first
+  private_db_subnets = module.vpc.private_db_subnets
+  ecs_sg_id          = aws_security_group.ecs_sg.id  # ✅ now from root
+  project_name       = "myapp"
+  env                = "dev"
 }
 
-# ECS Fargate Service
+# ECS Module
 module "ecs" {
   source             = "../../modules/ecs"
-  env                = "dev"
   vpc_id             = module.vpc.vpc_id
-  public_subnet_ids  = module.vpc.public_subnet_ids
-  private_subnet_ids = module.vpc.private_app_subnet_ids # ✅ corrected
-  container_image    = "nginx:latest"                    # Replace with your image
+  private_subnet_ids = module.vpc.private_app_subnet_ids
+  container_image    = "nginx:latest"
   db_host            = module.aurora.aurora_endpoint
   db_name            = "appdb"
   db_username        = "admin"
   db_password        = "MySecurePassword123!"
+  ecs_sg_id          = aws_security_group.ecs_sg.id  # ✅ pass same SG
 }
 # Route53 DNS for dev environment
 module "route53" {
