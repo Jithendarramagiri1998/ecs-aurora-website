@@ -44,7 +44,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
 resource "aws_security_group" "ecs_sg" {
   name        = "ecs-sg-${var.env}"
   description = "Allow ECS traffic"
-  vpc_id      = module.vpc.vpc_id
+  vpc_id      = var.vpc_id
 
   ingress {
     from_port   = 80
