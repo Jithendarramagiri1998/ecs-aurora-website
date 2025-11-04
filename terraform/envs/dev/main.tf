@@ -23,6 +23,7 @@ module "aurora" {
   ecs_sg_id          = module.ecs.ecs_sg_id   # ✅ Fixed line
   kms_key_arn        = aws_kms_key.aurora.arn
   env                = var.env
+  project_name       = var.project_name
 }
 
 # ECS Module
