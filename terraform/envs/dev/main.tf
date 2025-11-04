@@ -22,11 +22,13 @@ module "aurora" {
   env                = "dev"
   vpc_id             = module.vpc.vpc_id
   private_db_subnets = module.vpc.private_db_subnet_ids # ✅ correct output name
-  ecs_sg_id          = "sg-08aff85c997bf7d9c"        # Replace after ECS SG creation
+  ecs_sg_id          = module.ecs.ecs_sg_id        # Replace after ECS SG creation
   kms_key_arn        = "arn:aws:kms:us-east-1:141559732042:key/mrk-4adac1a49f484a4f87354fd6b5574bf9"  # yoours kms_key_arn
 
   db_username = "admin"
   db_name     = "webappdb"
+
+depends_on = [module.ecs]  # ✅ ensures ECS SG created first
 }
 
 # ECS Fargate Service
