@@ -7,11 +7,11 @@ resource "aws_kms_key" "aurora" {
   description             = "KMS key for Aurora DB encryption"
   deletion_window_in_days = 7
   enable_key_rotation     = true
-
   tags = {
     Name = "${var.project_name}-aurora-kms-${var.env}"
   }
 }
+
 
 # --------------------------------------------
 # Security Group for Aurora DB
@@ -105,7 +105,7 @@ resource "aws_rds_cluster" "aurora_cluster" {
   skip_final_snapshot     = true
 
   tags = {
-    Name = "${var.project_name}-aurora-cluster-${var.env}"
+    Name        = "${var.project_name}-aurora-cluster-${var.env}"
     Environment = var.env
   }
 }
