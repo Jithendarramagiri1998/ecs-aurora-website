@@ -23,6 +23,7 @@ module "aurora" {
   ecs_sg_id          = aws_security_group.ecs_sg.id  # ✅ now from root
   project_name       = "myapp"
   env                = "dev"
+  kms_key_arn        = aws_kms_key.aurora.arn
 }
 
 # ECS Module
