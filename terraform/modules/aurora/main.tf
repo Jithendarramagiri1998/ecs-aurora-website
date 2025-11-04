@@ -13,7 +13,7 @@ resource "aws_security_group" "aurora_sg" {
     from_port        = 3306
     to_port          = 3306
     protocol         = "tcp"
-    security_groups  = [var.ecs_sg_id] # Allow only ECS SG to access DB
+    cidr_blocks = ["10.0.0.0/16"] # Allow only ECS SG to access DB
   }
 
   egress {
