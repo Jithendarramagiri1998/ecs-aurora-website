@@ -19,11 +19,10 @@ module "vpc" {
 module "aurora" {
   source             = "../../modules/aurora"
   vpc_id             = module.vpc.vpc_id
-  private_db_subnets = module.vpc.private_db_subnet_ids
-  ecs_sg_id          = aws_security_group.ecs_sg.id  # ✅ now from root
-  project_name       = "myapp"
-  env                = "dev"
-  kms_key_arn        = "arn:aws:kms:us-east-1:141559732042:key/mrk-4adac1a49f484a4f87354fd6b5574bf9"
+  private_db_subnets = module.vpc.private_subnets
+  ecs_sg_id          = module.ecs.ecs_sg_id   # ✅ Fixed line
+  kms_key_arn        = aws_kms_key.aurora.arn
+  env                = var.env
 }
 
 # ECS Module
