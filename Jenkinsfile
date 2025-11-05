@@ -99,49 +99,50 @@ pipeline {
         }
 
         stage('Deploy to ECS') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-                    sh '''
-                    echo "🚀 Registering new ECS task definition revision with updated image..."
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+            sh '''
+            echo "🚀 Registering new ECS task definition revision with updated image..."
 
-                    TASK_NAME="${ENV}-app-task"
+            TASK_NAME="${ENV}-app-task"
 
-                    # Fetch current task definition JSON
-                    TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
+            # Fetch current task definition JSON
+            TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
 
-                    # Update the image URI inside container definitions
-                        NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '
-                            .taskDefinition
-                            | {
-                                family: .family,
-                                networkMode: .networkMode,
-                                executionRoleArn: .executionRoleArn,
-                                containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)),
-                                requiresCompatibilities: .requiresCompatibilities,
-                                cpu: .cpu,
-                                memory: .memory
-                            }
-                            # Include taskRoleArn only if it's not null
-                            | if .taskRoleArn == null then del(.taskRoleArn) else . end
-                        ')
+            # Update the image URI and remove taskRoleArn if null
+            NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '
+                .taskDefinition
+                | del(.taskRoleArn)
+                | .containerDefinitions |= map(.image = $IMAGE)
+                | {
+                    family: .family,
+                    networkMode: .networkMode,
+                    executionRoleArn: .executionRoleArn,
+                    containerDefinitions: .containerDefinitions,
+                    requiresCompatibilities: .requiresCompatibilities,
+                    cpu: .cpu,
+                    memory: .memory
+                  }
+            ')
 
-                    # Save JSON and register new revision
-                    echo $NEW_TASK_DEF > new-task-def.json
+            # Save JSON and register new revision
+            echo $NEW_TASK_DEF > new-task-def.json
 
-                    aws ecs register-task-definition \
-                        --cli-input-json file://new-task-def.json \
-                        --region ${AWS_REGION}
+            aws ecs register-task-definition \
+                --cli-input-json file://new-task-def.json \
+                --region ${AWS_REGION}
 
-                    echo "🚀 Updating ECS Service with latest task definition..."
-                    aws ecs update-service \
-                        --cluster ${ENV}-ecs-cluster \
-                        --service ${ENV}-ecs-service \
-                        --force-new-deployment \
-                        --region ${AWS_REGION}
-                    '''
-                }
-            }
+            echo "🚀 Updating ECS Service with latest task definition..."
+            aws ecs update-service \
+                --cluster ${ENV}-ecs-cluster \
+                --service ${ENV}-ecs-service \
+                --force-new-deployment \
+                --region ${AWS_REGION}
+            '''
         }
+    }
+}
+
         stage('Verify Deployment') {
             steps {
                 script {
