@@ -6,10 +6,10 @@ pipeline {
     }
 
     environment {
-        AWS_REGION = 'us-east-1'
+        AWS_REGION      = 'us-east-1'
         AWS_CREDENTIALS = credentials('aws-jenkins-creds')
-        ECR_REPO = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite'
-        IMAGE_TAG = "v${BUILD_NUMBER}"
+        ECR_REPO        = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite'
+        IMAGE_TAG       = "v${BUILD_NUMBER}"
     }
 
     stages {
@@ -21,50 +21,48 @@ pipeline {
         }
 
         stage('Terraform Init & Validate') {
-    steps {
-        script {
-            def terraformRoot = "${env.WORKSPACE}/terraform"
-            def backendPath   = "${terraformRoot}/global/backend"
-            def envPath       = "${terraformRoot}/envs/${ENV}"
+            steps {
+                script {
+                    def terraformRoot = "${env.WORKSPACE}/terraform"
+                    def backendPath   = "${terraformRoot}/global/backend"
+                    def envPath       = "${terraformRoot}/envs/${params.ENV}"
 
-            dir(envPath) {
-                sh """
-                if ! aws s3api head-bucket --bucket my-terraform-states-1234 2>/dev/null; then
-                  echo 'ðŸš€ Creating backend S3 & DynamoDB...'
-                  cd ${backendPath}
-                  terraform init -input=false
-                  terraform apply -auto-approve
-                  cd ${envPath}
-                else
-                  echo 'âœ… Backend S3 bucket already exists.'
-                fi
-                """
+                    dir(envPath) {
+                        sh '''
+                        if ! aws s3api head-bucket --bucket my-terraform-states-1234 2>/dev/null; then
+                            echo "🚀 Creating backend S3 & DynamoDB..."
+                            cd ../../global/backend
+                            terraform init -input=false
+                            terraform apply -auto-approve
+                            cd -
+                        else
+                            echo "✅ Backend S3 bucket already exists."
+                        fi
 
-                sh """
-                 terraform init -reconfigure \
-                  -backend-config="bucket=my-terraform-states-1234" \
-                  -backend-config="key=${ENV}/terraform.tfstate" \
-                  -backend-config="region=us-east-1" \
-                  -backend-config="dynamodb_table=terraform-locks" \
-                  -input=false
+                        terraform init \
+                          -backend-config="bucket=my-terraform-states-1234" \
+                          -backend-config="key=${ENV}/terraform.tfstate" \
+                          -backend-config="region=us-east-1" \
+                          -backend-config="dynamodb_table=terraform-locks" \
+                          -input=false
 
-                terraform validate
-                terraform workspace select ${ENV} || terraform workspace new ${ENV}
-                """
+                        terraform validate
+                        terraform workspace select ${ENV} || terraform workspace new ${ENV}
+                        '''
+                    }
+                }
             }
         }
-    }
-}
+
         stage('Terraform Plan & Apply Infra') {
             steps {
                 dir("terraform/envs/${params.ENV}") {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                         sh '''
-                        echo "ðŸ“¦ Running Terraform Plan for ${ENV}..."
+                        echo "📦 Running Terraform Plan for ${ENV}..."
                         terraform plan -input=false -out=tfplan -var="env=${ENV}"
-                        echo "ðŸš€ Applying Terraform Changes..."
+                        echo "🚀 Applying Terraform Changes..."
                         terraform apply -input=false -auto-approve tfplan
-                        
                         '''
                     }
                 }
@@ -72,28 +70,28 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-    steps {
-        script {
-            echo "ðŸ› ï¸ Building Docker image with app code..."
-            sh '''
-            cd app
-            echo "ðŸ“‚ Checking files inside app/"
-            ls -l
-            echo "ðŸ³ Building Docker image..."
-            docker build -t ${ECR_REPO}:${IMAGE_TAG} .
-            echo "âœ… Docker image built successfully!"
-            '''
+            steps {
+                script {
+                    echo "🔧 Building Docker image with app code..."
+                    sh '''
+                    cd app
+                    echo "📁 Checking files inside app/"
+                    ls -l
+                    echo "🐳 Building Docker image..."
+                    docker build -t ${ECR_REPO}:${IMAGE_TAG} .
+                    echo "✅ Docker image built successfully!"
+                    '''
+                }
+            }
         }
-    }
-}
 
         stage('Push Docker Image to ECR') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                     sh '''
-                    echo "ðŸ” Logging in to Amazon ECR..."
+                    echo "🔐 Logging in to Amazon ECR..."
                     aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
-                    echo "ðŸ“¤ Pushing Docker image to ECR..."
+                    echo "🚀 Pushing Docker image to ECR..."
                     docker push ${ECR_REPO}:${IMAGE_TAG}
                     '''
                 }
@@ -101,51 +99,52 @@ pipeline {
         }
 
         stage('Deploy to ECS') {
-    steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-            sh '''
-            echo "ðŸš€ Registering new ECS task definition revision with updated image..."
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+                    sh '''
+                    echo "🚀 Registering new ECS task definition revision with updated image..."
 
-            TASK_NAME="dev-app-task"
+                    TASK_NAME="${ENV}-app-task"
 
-            # Fetch current task definition JSON
-            TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
+                    # Fetch current task definition JSON
+                    TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
 
-            # Update the image URI inside container definitions
-            NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" \
-                '.taskDefinition | {
-                    family: .family,
-                    networkMode: .networkMode,
-                    taskRoleArn: .taskRoleArn,
-                    executionRoleArn: .executionRoleArn,
-                    containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)),
-                    requiresCompatibilities: .requiresCompatibilities,
-                    cpu: .cpu,
-                    memory: .memory
-                }')
+                    # Update the image URI inside container definitions
+                    NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" \
+                        '.taskDefinition | {
+                            family: .family,
+                            networkMode: .networkMode,
+                            taskRoleArn: .taskRoleArn,
+                            executionRoleArn: .executionRoleArn,
+                            containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)),
+                            requiresCompatibilities: .requiresCompatibilities,
+                            cpu: .cpu,
+                            memory: .memory
+                        }')
 
-            # Save JSON and register new revision
-            echo $NEW_TASK_DEF > new-task-def.json
+                    # Save JSON and register new revision
+                    echo $NEW_TASK_DEF > new-task-def.json
 
-            aws ecs register-task-definition \
-                --cli-input-json file://new-task-def.json \
-                --region ${AWS_REGION}
+                    aws ecs register-task-definition \
+                        --cli-input-json file://new-task-def.json \
+                        --region ${AWS_REGION}
 
-            echo "ðŸš€ Updating ECS Service with latest task definition..."
-            aws ecs update-service \
-                --cluster ${ENV}-ecs-cluster \
-                --service ${ENV}-ecs-service \
-                --force-new-deployment \
-                --region ${AWS_REGION}
-            '''
+                    echo "🚀 Updating ECS Service with latest task definition..."
+                    aws ecs update-service \
+                        --cluster ${ENV}-ecs-cluster \
+                        --service ${ENV}-ecs-service \
+                        --force-new-deployment \
+                        --region ${AWS_REGION}
+                    '''
+                }
+            }
         }
-    }
-}
+
         stage('Verify Deployment') {
             steps {
                 script {
-                    echo "âœ… Deployment completed for ${params.ENV} environment!"
-                    echo "ðŸŒ Check website URL after Route53 setup: https://${params.ENV}.yourdomain.com"
+                    echo "✅ Deployment completed for ${params.ENV} environment!"
+                    echo "🌐 Check website URL after Route53 setup: https://${params.ENV}.yourdomain.com"
                 }
             }
         }
@@ -153,10 +152,22 @@ pipeline {
 
     post {
         success {
-            echo "ðŸŽ‰ ${params.ENV} deployment successful!"
+            echo "🎉 ${params.ENV} deployment successful!"
         }
         failure {
-            echo "âŒ Deployment failed. Check Jenkins logs and CloudWatch for details."
+            echo "❌ Deployment failed. Check Jenkins logs and CloudWatch for details."
         }
+    }
+}
+post {
+    success {
+        mail to: 'ramagirijithendar1998@gmail.com',
+             subject: "✅ Jenkins Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+             body: "The build succeeded!\nCheck details: ${env.BUILD_URL}"
+    }
+    failure {
+        mail to: 'ramagirijithendar1998@gmail.com',
+             subject: "❌ Jenkins Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+             body: "The build failed.\nPlease check console output: ${env.BUILD_URL}"
     }
 }
