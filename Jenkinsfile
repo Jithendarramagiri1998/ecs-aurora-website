@@ -160,13 +160,16 @@ pipeline {
 }
 post {
     success {
+        echo "🎉 ${params.ENV} deployment successful!"
         mail to: 'ramagirijithendar1998@gmail.com',
              subject: "✅ Jenkins Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
              body: "The build succeeded!\nCheck details: ${env.BUILD_URL}"
     }
     failure {
+        echo "❌ Deployment failed. Check Jenkins logs and CloudWatch for details."
         mail to: 'ramagirijithendar1998@gmail.com',
              subject: "❌ Jenkins Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
              body: "The build failed.\nPlease check console output: ${env.BUILD_URL}"
     }
 }
+
