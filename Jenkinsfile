@@ -111,7 +111,7 @@ pipeline {
 
                     # Update the image URI inside container definitions
                     NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" \
-                        '.taskDefinition | {
+                        .taskDefinition | {
                             family: .family,
                             networkMode: .networkMode,
                             executionRoleArn: .executionRoleArn,
@@ -119,7 +119,7 @@ pipeline {
                             requiresCompatibilities: .requiresCompatibilities,
                             cpu: .cpu,
                             memory: .memory
-                        }')
+                        }
 
                     # Save JSON and register new revision
                     echo $NEW_TASK_DEF > new-task-def.json
