@@ -114,7 +114,6 @@ pipeline {
                         '.taskDefinition | {
                             family: .family,
                             networkMode: .networkMode,
-                            taskRoleArn: .taskRoleArn,
                             executionRoleArn: .executionRoleArn,
                             containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)),
                             requiresCompatibilities: .requiresCompatibilities,
