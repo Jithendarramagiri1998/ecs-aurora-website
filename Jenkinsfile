@@ -110,9 +110,9 @@ pipeline {
             TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
 
             # Update the image URI and remove taskRoleArn if null
-            NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '
+                NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '
                 .taskDefinition
-                | del(.taskRoleArn)
+                | del(.taskRoleArn)                  # <- REMOVE taskRoleArn if null
                 | .containerDefinitions |= map(.image = $IMAGE)
                 | {
                     family: .family,
@@ -123,7 +123,8 @@ pipeline {
                     cpu: .cpu,
                     memory: .memory
                   }
-            ')
+        ')
+
 
             # Save JSON and register new revision
             echo $NEW_TASK_DEF > new-task-def.json
