@@ -65,8 +65,9 @@ resource "random_string" "suffix" {
 resource "random_password" "db_password" {
   length           = 16
   special          = true
-  override_special = "_%@"
+  override_special = "_#%!"
 }
+
 
 ############################################
 # AWS Secrets Manager for DB Credentials
