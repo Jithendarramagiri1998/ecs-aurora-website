@@ -369,7 +369,8 @@ On your Jenkins server (EC2 or local):
 - AWS CLI  
 - Docker Pipeline  
 - Git  
-- Terraform Plugin  
+- Terraform Plugin
+- Confiure your email to get email notifaction about pipeline sucess or failed.
 ---
 ## 🔐 Configure AWS Credentials
 1. Go to **Jenkins → Manage Jenkins → Credentials**  
@@ -382,20 +383,19 @@ Jenkins agent/server must have:
 - Docker  
 - AWS CLI  
 - Terraform installed
-``` 
+   
 ---
 ## 🏗️ Create a Pipeline Job
 1. Name: `ecs-website-deploy`  
 2. Select: **“Pipeline script from SCM”**  
 3. SCM: **Git** → paste your GitHub repository URL
-```  
+
 ---
 ## ▶️ Run the Pipeline
 Jenkins will automatically:
 - Build and push Docker image  
 - Apply Terraform infrastructure  
 - Deploy the application on ECS
-  ```
 ---
 # 🧩 1. Jenkins Server Setup (if not done)
 
