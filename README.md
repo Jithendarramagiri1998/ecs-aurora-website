@@ -60,12 +60,6 @@ It follows **best practices** for:
 app
 ├── Dockerfile
 ├── index.html
-
-scripts
-├── build_and_push_ecr.sh
-├── deploy_full.sh
-├── ecs_deploy.sh
-
 terraform
 ├── envs
 │ ├── dev
@@ -102,6 +96,8 @@ terraform
 ├── main.tf
 ├── outputs.tf
 └── variables.tf
+├── Jenkinsfile
+
 ```
 
 ---
@@ -111,124 +107,13 @@ terraform
 * **AWS Account** with IAM permissions
 * **Terraform ≥ v1.5**
 * **AWS CLI** configured (`aws configure`)
-* **Docker** installed locally
+* **Docker** installed
 * **Domain registered in Route53 (optional)** for DNS setup
-
 ---
 
-## 🪜 **option-1 Setup Steps to deploy with shell script below**
+## 🪜 **Setup Steps to deploy with jenkins CI/CD flow**
 
-### 1️⃣ Clone the Repository
-
-```bash
-git clone https://github.com//project-22-ecs-aurora.git
-cd project-22-ecs-aurora
-```
-
-### 2️⃣ Initialize Terraform (Dev Environment)
-
-```bash
-cd environments/dev
-terraform init
-terraform plan
-terraform apply -auto-approve
-```
-
-This provisions **VPC**, **ECS Cluster**, **AuroraDB**, **Route53 records**, **CloudWatch metrics**, and **SNS alerts**.
-
-### 3️⃣ Initialize Terraform (Staging Environment)
-
-```bash
-cd ../staging
-terraform init
-terraform plan
-terraform apply -auto-approve
-```
-
-Separate resources for **staging** environment with isolated networking, ECS cluster, and AuroraDB.
-
----
-
-## 🐳 **Build & Push Docker Image**
-
-Use the helper script to build and push your website container image to **ECR**:
-
-```bash
-cd scripts
-chmod +x build_and_push_ecr.sh
-./build_and_push_ecr.sh
-```
-
----
-
-## 🚢 **Deploy ECS Service**
-
-After pushing the Docker image, update ECS service with the new image:
-
-```bash
-./ecs_deploy.sh
-```
-
----
-
-## 🌐 **Access the Website**
-
-After deployment:
-
-* **Dev:** [https://dev.myapp.example.com](https://dev.myapp.example.com)
-* **Staging:** [https://staging.myapp.example.com](https://staging.myapp.example.com)
-
-Both environments are isolated with different ECS, Aurora, and VPC setups.
-
----
-
-## 🔒 **Security Highlights**
-
-✅ Aurora hosted in private subnets (no public access)
-✅ ECS tasks communicate via internal SG rules
-✅ IAM least privilege enforced for ECS tasks and Terraform
-✅ Encrypted Aurora cluster (KMS key used)
-✅ HTTPS via ALB + Route53
-
----
-
-## 📈 **Monitoring & Alerts**
-
-* **CloudWatch Logs** → ECS task/application logs
-* **CloudWatch Alarms** → Aurora CPU, Memory, Disk usage
-* **SNS Topic** → Sends alert emails for threshold breaches
-
----
-
-## 🧱 **Environment Separation**
-
-Each environment (**dev**, **staging**) has:
-
-* Own VPC, Subnets, Route Tables
-* Independent ECS Cluster
-* Separate AuroraDB Cluster
-* Dedicated CloudWatch Log Groups & Alarms
-* Distinct Route53 DNS records
-
-This ensures no overlap or cross-environment impact.
-
----
-
-## 🧹 **Cleanup**
-
-To destroy the environment and avoid charges:
-
-```bash
-terraform destroy -auto-approve
-```
-
----
-
-## 🪜 **Option-2 Setup Steps to deploy with jenkins CI/CD flow**
-
----
-
-# 🚀 Project Overview
+## 🚀 Project Overview
 
 ## 🎯 Goal
 
@@ -240,6 +125,7 @@ Deploy a sample HTML website using:
 - **AWS ECR** → to store Docker images  
 - **CloudWatch** → for monitoring and logs
 ---
+
 # 🧩 Project Components
 
 | Component     | Purpose                                      |
@@ -250,57 +136,6 @@ Deploy a sample HTML website using:
 | **Jenkinsfile**| Defines the CI/CD pipeline                   |
 | **AWS**        | Target cloud platform (ECS Fargate)          |
 
----
-
-## 🧩 **Project Structure**
-
-```plaintext
-app
-├── Dockerfile
-├── index.html
-
-scripts
-├── build_and_push_ecr.sh
-├── deploy_full.sh
-├── ecs_deploy.sh
-
-terraform
-├── envs
-│ ├── dev
-│ │ ├── backend.tf
-│ │ └── main.tf
-│ ├── staging
-│ │ ├── backend.tf
-│ │ └── main.tf
-│ └── global
-│ └── backend
-│ └── main.tf
-└── modules
-├── aurora
-│ ├── main.tf
-│ ├── outputs.tf
-│ └── variables.tf
-├── cloudwatch
-│ ├── main.tf
-│ ├── outputs.tf
-│ └── variables.tf
-├── ecs
-│ ├── main.tf
-│ ├── outputs.tf
-│ └── variables.tf
-├── route53
-│ ├── main.tf
-│ ├── outputs.tf
-│ └── variables.tf
-├── sns
-│ ├── main.tf
-│ ├── outputs.tf
-│ └── variables.tf
-└── vpc
-├── main.tf
-├── outputs.tf
-└── variables.tf
-```
 ---
 
 # 🌐 1. Sample Webpage (`app/index.html`)
@@ -331,10 +166,17 @@ terraform
 ---
 # 🐳 2. Dockerfile (`app/Dockerfile`)
 
-```dockerfile
-FROM nginx:alpine
-COPY index.html /usr/share/nginx/html/index.html
+```FROM nginx:latest
+
+# Remove default nginx files
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy everything from the current directory (app/) into nginx html
+COPY . /usr/share/nginx/html/
+
 EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
 ```
 ---
 # 🧱 4. Jenkinsfile (CI/CD Pipeline)
@@ -350,26 +192,46 @@ pipeline {
     }
 
     environment {
-        AWS_REGION = 'us-east-1'
+        AWS_REGION      = 'us-east-1'
         AWS_CREDENTIALS = credentials('aws-jenkins-creds')
-        ECR_REPO = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite'
-        IMAGE_TAG = "v${BUILD_NUMBER}"
+        ECR_REPO        = '141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite'
+        IMAGE_TAG       = "v${BUILD_NUMBER}"
     }
 
     stages {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main', credentialsId: 'git', url: 'https://github.com/yourname/ecs-aurora-website.git'
+                git branch: 'main', credentialsId: 'git', url: 'https://github.com/Jithendarramagiri1998/ecs-aurora-website.git'
             }
         }
 
         stage('Terraform Init & Validate') {
             steps {
-                dir('terraform') {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+                script {
+                    def terraformRoot = "${env.WORKSPACE}/terraform"
+                    def backendPath   = "${terraformRoot}/global/backend"
+                    def envPath       = "${terraformRoot}/envs/${params.ENV}"
+
+                    dir(envPath) {
                         sh '''
-                        terraform init -input=false
+                        if ! aws s3api head-bucket --bucket my-terraform-states-1234 2>/dev/null; then
+                            echo "🚀 Creating backend S3 & DynamoDB..."
+                            cd ../../global/backend
+                            terraform init -input=false
+                            terraform apply -auto-approve
+                            cd -
+                        else
+                            echo "✅ Backend S3 bucket already exists."
+                        fi
+
+                        terraform init \
+                          -backend-config="bucket=my-terraform-states-1234" \
+                          -backend-config="key=${ENV}/terraform.tfstate" \
+                          -backend-config="region=us-east-1" \
+                          -backend-config="dynamodb_table=terraform-locks" \
+                          -input=false
+
                         terraform validate
                         terraform workspace select ${ENV} || terraform workspace new ${ENV}
                         '''
@@ -380,10 +242,12 @@ pipeline {
 
         stage('Terraform Plan & Apply Infra') {
             steps {
-                dir('terraform') {
+                dir("terraform/envs/${params.ENV}") {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                         sh '''
+                        echo "📦 Running Terraform Plan for ${ENV}..."
                         terraform plan -input=false -out=tfplan -var="env=${ENV}"
+                        echo "🚀 Applying Terraform Changes..."
                         terraform apply -input=false -auto-approve tfplan
                         '''
                     }
@@ -393,10 +257,15 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                script {
+                    echo "🔧 Building Docker image with app code..."
                     sh '''
                     cd app
+                    echo "📁 Checking files inside app/"
+                    ls -l
+                    echo "🐳 Building Docker image..."
                     docker build -t ${ECR_REPO}:${IMAGE_TAG} .
+                    echo "✅ Docker image built successfully!"
                     '''
                 }
             }
@@ -406,8 +275,9 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                     sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login --username AWS --password-stdin ${ECR_REPO}
+                    echo "🔐 Logging in to Amazon ECR..."
+                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                    echo "🚀 Pushing Docker image to ECR..."
                     docker push ${ECR_REPO}:${IMAGE_TAG}
                     '''
                 }
@@ -415,35 +285,74 @@ pipeline {
         }
 
         stage('Deploy to ECS') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-                    sh '''
-                    aws ecs update-service \
-                        --cluster ${ENV}-ecs-cluster \
-                        --service ${ENV}-web-service \
-                        --force-new-deployment \
-                        --region ${AWS_REGION}
-                    '''
-                }
-            }
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+            sh '''
+            echo "🚀 Registering new ECS task definition revision with updated image..."
+
+            TASK_NAME="${ENV}-app-task"
+
+            # Fetch current task definition JSON
+            TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
+
+            # Update the image URI and remove taskRoleArn if null
+                NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '
+                .taskDefinition
+                | del(.taskRoleArn)                  # <- REMOVE taskRoleArn if null
+                | .containerDefinitions |= map(.image = $IMAGE)
+                | {
+                    family: .family,
+                    networkMode: .networkMode,
+                    executionRoleArn: .executionRoleArn,
+                    containerDefinitions: .containerDefinitions,
+                    requiresCompatibilities: .requiresCompatibilities,
+                    cpu: .cpu,
+                    memory: .memory
+                  }
+        ')
+
+
+            # Save JSON and register new revision
+            echo $NEW_TASK_DEF > new-task-def.json
+
+            aws ecs register-task-definition \
+                --cli-input-json file://new-task-def.json \
+                --region ${AWS_REGION}
+
+            echo "🚀 Updating ECS Service with latest task definition..."
+            aws ecs update-service \
+                --cluster ${ENV}-ecs-cluster \
+                --service ${ENV}-ecs-service \
+                --force-new-deployment \
+                --region ${AWS_REGION}
+            '''
         }
+    }
+}
 
         stage('Verify Deployment') {
             steps {
                 script {
-                    echo "✅ Deployment completed for ${ENV} environment!"
-                    echo "Website: https://${ENV}.example.com"
+                    echo "✅ Deployment completed for ${params.ENV} environment!"
+                    echo "🌐 Check website URL after Route53 setup: https://${params.ENV}.yourdomain.com"
                 }
             }
         }
     }
 
+    // The post block must be inside the pipeline { } block
     post {
         success {
-            echo "🎉 ${ENV} deployment successful!"
+            echo "🎉 ${params.ENV} deployment successful!"
+            mail to: 'ramagirijithendar1998@gmail.com',
+                 subject: "✅ Jenkins Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "The build succeeded!\nCheck details: ${env.BUILD_URL}"
         }
         failure {
-            echo "❌ Deployment failed. Check logs in Jenkins & CloudWatch."
+            echo "❌ Deployment failed. Check Jenkins logs and CloudWatch for details."
+            mail to: 'ramagirijithendar1998@gmail.com',
+                 subject: "❌ Jenkins Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "The build failed.\nPlease check console output: ${env.BUILD_URL}"
         }
     }
 }
