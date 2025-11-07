@@ -106,43 +106,44 @@ pipeline {
 
             TASK_NAME="${ENV}-app-task"
 
-            # Fetch current task definition JSON
-            TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION})
+            # Fetch current ECS task definition
+            echo "📦 Fetching current ECS task definition..."
+            aws ecs describe-task-definition --task-definition $TASK_NAME --region ${AWS_REGION} > task-def.json
 
-            # Update the image URI and remove taskRoleArn if null
-                NEW_TASK_DEF=$(echo $TASK_DEF_JSON | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '
-                .taskDefinition
-                | del(.taskRoleArn)                  # <- REMOVE taskRoleArn if null
-                | .containerDefinitions |= map(.image = $IMAGE)
-                | {
+            # Create a new task definition JSON with the new image
+            echo "🛠️ Updating container image to ${ECR_REPO}:${IMAGE_TAG} ..."
+            cat task-def.json | jq --arg IMAGE "${ECR_REPO}:${IMAGE_TAG}" '
+                .taskDefinition |
+                del(.taskRoleArn) |
+                {
                     family: .family,
                     networkMode: .networkMode,
                     executionRoleArn: .executionRoleArn,
-                    containerDefinitions: .containerDefinitions,
+                    containerDefinitions: (.containerDefinitions | map(.image = $IMAGE)),
                     requiresCompatibilities: .requiresCompatibilities,
                     cpu: .cpu,
                     memory: .memory
-                  }
-        ')
+                }
+            ' > new-task-def.json
 
-
-            # Save JSON and register new revision
-            echo $NEW_TASK_DEF > new-task-def.json
-
+            echo "📝 Registering new ECS task definition..."
             aws ecs register-task-definition \
                 --cli-input-json file://new-task-def.json \
                 --region ${AWS_REGION}
 
-            echo "🚀 Updating ECS Service with latest task definition..."
+            echo "🚀 Updating ECS service to use latest task definition..."
             aws ecs update-service \
                 --cluster ${ENV}-ecs-cluster \
                 --service ${ENV}-ecs-service \
                 --force-new-deployment \
                 --region ${AWS_REGION}
+
+            echo "✅ ECS service updated successfully with new image!"
             '''
         }
     }
 }
+
 
         stage('Verify Deployment') {
             steps {
