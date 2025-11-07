@@ -4,7 +4,7 @@ FROM nginx:latest
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy everything from the current directory (app/) into nginx html
-COPY . /usr/share/nginx/html/
+COPY index.html /usr/share/nginx/html/
 
 EXPOSE 80
 
