@@ -2,7 +2,17 @@ module "ecs" {
   source             = "../../modules/ecs"
   env                = var.env
   public_subnet_ids  = var.public_subnet_ids
+  private_subnet_ids = var.private_subnet_ids
   vpc_id             = var.vpc_id
+# DB details
+  db_host     = var.db_host
+  db_name     = var.db_name
+  db_username = var.db_username
+  db_password = var.db_password
+
+  # Container image to deploy
+  container_image = var.container_image
+
 }
 
 module "route53" {
