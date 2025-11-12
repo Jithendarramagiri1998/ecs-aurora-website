@@ -13,4 +13,4 @@ private_subnet_ids = ["subnet-025488b679374292b", "subnet-0c6428f5e06768537"]
 db_host     = "mydb.cluster-xxxxxx.us-east-1.rds.amazonaws.com"
 db_name     = "appdb"
 db_username = "admin"
-db_password = "MySecretPass123"
+db_password = "MySecurePassword123!"
