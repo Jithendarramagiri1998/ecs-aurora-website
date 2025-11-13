@@ -64,37 +64,40 @@ pipeline {
         stage('Terraform Plan & Apply Infra') {
     steps {
         dir("terraform/envs/${params.ENV}") {
-            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
-                sh '''
-                set -eux
-                echo "📦 Running Terraform Plan for ${ENV} environment..."
-                echo "📂 Current Directory: $(pwd)"
-                echo "🧾 Files:"
-                ls -l
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding', 
+                credentialsId: 'aws-jenkins-creds'
+            ]]) {
+                withCredentials([string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASS')]) {
+                    sh '''
+                    set -eux
+                    echo "📦 Running Terraform for ${ENV} environment..."
+                    echo "📂 Current Directory: $(pwd)"
+                    ls -l
 
-                terraform init -input=false
-                terraform validate
+                    terraform init -input=false
+                    terraform validate
 
-                if [ -f "${ENV}.tfvars" ]; then
-                    echo "✅ Found ${ENV}.tfvars file — applying with it..."
-                    terraform plan -input=false -out=tfplan \
-                        -var-file="${ENV}.tfvars" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-                    terraform apply -input=false -auto-approve \
-                        -var-file="${ENV}.tfvars" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-                else
-                    echo "⚙️ No tfvars file found — using inline vars"
-                    terraform plan -input=false -out=tfplan \
-                        -var="env=${ENV}" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-                    terraform apply -input=false -auto-approve tfplan
-                fi
-                '''
+                    if [ -f "${ENV}.tfvars" ]; then
+                        echo "✅ Found ${ENV}.tfvars file — applying with it..."
+                        terraform plan -input=false -out=tfplan \
+                            -var "db_password=${DB_PASS}" \
+                            -var-file="${ENV}.tfvars"
+
+                        terraform apply -input=false -auto-approve \
+                            -var "db_password=${DB_PASS}" \
+                            -var-file="${ENV}.tfvars"
+                    else
+                        echo "❌ ${ENV}.tfvars file not found! Exiting..."
+                        exit 1
+                    fi
+                    '''
+                }
             }
         }
     }
 }
+
         stage('Build Docker Image') {
             steps {
                 script {
