@@ -62,51 +62,57 @@ pipeline {
         }
 
       stage('Terraform Plan & Apply Infra') {
-    steps {
-        dir("terraform/envs/${params.ENV}") {
-            withCredentials([[
-                $class: 'AmazonWebServicesCredentialsBinding', 
-                credentialsId: 'aws-jenkins-creds'
-            ]]) {
-                withCredentials([string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASS')]) {
-                    sh '''
-                    set -eux
-                    echo "📦 Running Terraform for ${ENV} environment..."
-                    
-                    # Create staging.tfvars if it doesn't exist
-                    TFVARS_FILE="${ENV}.tfvars"
-                    if [ ! -f "${TFVARS_FILE}" ]; then
-                        echo "📝 Creating ${TFVARS_FILE}..."
-                        cat > "${TFVARS_FILE}" << EOF
-env                  = "staging"
-container_image      = "141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite"
-vpc_id               = "vpc-05299e9e75eab14c1"
-public_subnet_ids    = ["subnet-096fd24cd2bfa60d6", "subnet-0488ea7a446fd6fdd"]
-private_subnet_ids   = ["subnet-025488b679374292b", "subnet-0c6428f5e06768537"]
-db_host              = "ecs-aurora-aurora-cluster-dev.cluster-cela4qmqgtmv.us-east-1.rds.amazonaws.com"
-db_name              = "appdb"
-db_username          = "admin"
-db_password          = ""
-EOF
-                    fi
-                    
-                    echo "✅ Using ${TFVARS_FILE}"
-                    cat "${TFVARS_FILE}"
-                    
-                    terraform init -input=false
-                    terraform validate
-                    
-                    terraform plan -input=false -out=tfplan \
-                        -var-file="${TFVARS_FILE}" \
-                        -var="db_password=${DB_PASS}"
-                    
-                    terraform apply -input=false -auto-approve tfplan
-                    '''
+            steps {
+                dir("terraform/envs/${params.ENV}") {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding', 
+                        credentialsId: 'aws-jenkins-creds'
+                    ]]) {
+                        withCredentials([string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASS')]) {
+                            sh '''
+                            set -eux
+                            echo "📦 Running Terraform for ${ENV} environment..."
+
+                            TFVARS_FILE="${ENV}.tfvars"
+                            if [ ! -f "${TFVARS_FILE}" ]; then
+                                echo "❌ ${TFVARS_FILE} not found!"
+                                exit 1
+                            fi
+                            echo "✅ Using ${TFVARS_FILE} for variables"
+
+                            # Validate essential Jenkins variables
+                            if [ -z "${ECR_REPO}" ] || [ -z "${IMAGE_TAG}" ]; then
+                                echo "❌ ECR_REPO or IMAGE_TAG is empty!"
+                                exit 1
+                            fi
+
+                            if [ -z "${DB_PASS}" ]; then
+                                echo "❌ DB_PASS credential not set!"
+                                exit 1
+                            fi
+
+                            terraform init -input=false
+                            terraform validate
+
+                            echo "📄 Planning Terraform changes..."
+                            terraform plan -input=false -out=tfplan \
+                                -var-file="${TFVARS_FILE}" \
+                                -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
+                                -var="db_password=${DB_PASS}"
+
+                            echo "🚀 Applying Terraform changes..."
+                            terraform apply -input=false -auto-approve -var-file="${TFVARS_FILE}" \
+                                -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
+                                -var="db_password=${DB_PASS}"
+
+                            echo "✅ Terraform completed successfully!"
+                            '''
+                        }
+                    }
                 }
             }
         }
-    }
-}
+
         stage('Build Docker Image') {
             steps {
                 script {
