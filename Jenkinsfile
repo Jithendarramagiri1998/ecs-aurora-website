@@ -63,38 +63,40 @@ pipeline {
 
         stage('Terraform Plan & Apply Infra') {
     steps {
-        dir("terraform/envs/${params.ENV}") {
+        // Make sure Jenkins is inside the Git repo workspace
+        dir("${WORKSPACE}/terraform/envs/${params.ENV}") {
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                 sh '''
                 set -eux
                 echo "📦 Running Terraform Plan for ${ENV} environment..."
-                echo "📂 Current directory: $(pwd)"
-                echo "🧾 Files here:"
-                ls -lh
+                echo "📂 Current Directory: $(pwd)"
+                echo "🧾 Files in this directory:"
+                ls -l
 
-                terraform init -input=false || true
+                terraform init -input=false
+                terraform validate
 
-                # If tfvars file exists, use it
                 if [ -f "${ENV}.tfvars" ]; then
-                  echo "✅ Found ${ENV}.tfvars file — applying..."
-                  terraform plan -input=false -out=tfplan \
-                    -var-file="${ENV}.tfvars" \
-                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-                  terraform apply -input=false -auto-approve \
-                    -var-file="${ENV}.tfvars" \
-                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
+                    echo "✅ Found ${ENV}.tfvars file — applying with it..."
+                    terraform plan -input=false -out=tfplan \
+                        -var-file="${ENV}.tfvars" \
+                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
+                    terraform apply -input=false -auto-approve \
+                        -var-file="${ENV}.tfvars" \
+                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
                 else
-                  echo "⚙️ No tfvars file found — using inline vars"
-                  terraform plan -input=false -out=tfplan \
-                    -var="env=${ENV}" \
-                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-                  terraform apply -input=false -auto-approve tfplan
+                    echo "⚙️ No tfvars file found — using inline vars"
+                    terraform plan -input=false -out=tfplan \
+                        -var="env=${ENV}" \
+                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
+                    terraform apply -input=false -auto-approve tfplan
                 fi
                 '''
             }
         }
     }
 }
+
         stage('Build Docker Image') {
             steps {
                 script {
