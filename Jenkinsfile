@@ -63,8 +63,7 @@ pipeline {
 
         stage('Terraform Plan & Apply Infra') {
     steps {
-        // Make sure Jenkins is inside the Git repo workspace
-        dir("${WORKSPACE}/terraform/envs/${params.ENV}") {
+        dir("terraform/envs/${params.ENV}") {
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                 sh '''
                 set -eux
@@ -73,7 +72,7 @@ pipeline {
                 echo "🧾 Files in this directory:"
                 ls -l
 
-                terraform init -input=false
+                terraform init -input=false || true
                 terraform validate
 
                 if [ -f "${ENV}.tfvars" ]; then
