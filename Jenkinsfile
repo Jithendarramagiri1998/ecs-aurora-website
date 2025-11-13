@@ -61,57 +61,27 @@ pipeline {
             }
         }
 
-      stage('Terraform Plan & Apply Infra') {
-            steps {
-                dir("terraform/envs/${params.ENV}") {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding', 
-                        credentialsId: 'aws-jenkins-creds'
-                    ]]) {
-                        withCredentials([string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASS')]) {
-                            sh '''
-                            set -eux
-                            echo "📦 Running Terraform for ${ENV} environment..."
-
-                            TFVARS_FILE="${ENV}.tfvars"
-                            if [ ! -f "${TFVARS_FILE}" ]; then
-                                echo "❌ ${TFVARS_FILE} not found!"
-                                exit 1
-                            fi
-                            echo "✅ Using ${TFVARS_FILE} for variables"
-
-                            # Validate essential Jenkins variables
-                            if [ -z "${ECR_REPO}" ] || [ -z "${IMAGE_TAG}" ]; then
-                                echo "❌ ECR_REPO or IMAGE_TAG is empty!"
-                                exit 1
-                            fi
-
-                            if [ -z "${DB_PASS}" ]; then
-                                echo "❌ DB_PASS credential not set!"
-                                exit 1
-                            fi
-
-                            terraform init -input=false
-                            terraform validate
-
-                            echo "📄 Planning Terraform changes..."
-                            terraform plan -input=false -out=tfplan \
-                                -var-file="${TFVARS_FILE}" \
-                                -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
-                                -var="db_password=${DB_PASS}"
-
-                            echo "🚀 Applying Terraform changes..."
-                            terraform apply -input=false -auto-approve -var-file="${TFVARS_FILE}" \
-                                -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
-                                -var="db_password=${DB_PASS}"
-
-                            echo "✅ Terraform completed successfully!"
-                            '''
-                        }
-                    }
-                }
+     stage('Terraform Plan & Apply') {
+    steps {
+        dir("terraform/envs/${params.ENV}") {
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'aws-jenkins'
+            ]]) {
+                // debug files
+                sh 'pwd'
+                sh 'ls -la'
+                
+                sh """
+                terraform init
+                terraform plan -var-file='${params.ENV}.tfvars' -out=tfplan
+                terraform apply -auto-approve tfplan
+                """
             }
         }
+    }
+}
+
 
         stage('Build Docker Image') {
             steps {
