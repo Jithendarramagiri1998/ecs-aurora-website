@@ -68,21 +68,17 @@ pipeline {
                 $class: 'AmazonWebServicesCredentialsBinding',
                 credentialsId: 'aws-jenkins'
             ]]) {
-                // debug files
                 sh 'pwd'
                 sh 'ls -la'
-                
                 sh """
                 terraform init
-                terraform plan -var-file='${params.ENV}.tfvars' -out=tfplan
+                terraform plan -var-file='${WORKSPACE}/terraform/envs/${params.ENV}/${params.ENV}.tfvars' -out=tfplan
                 terraform apply -auto-approve tfplan
                 """
             }
         }
     }
 }
-
-
         stage('Build Docker Image') {
             steps {
                 script {
