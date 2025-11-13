@@ -61,7 +61,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Plan & Apply Infra') {
+       stage('Terraform Plan & Apply Infra') {
     steps {
         dir("terraform/envs/${params.ENV}") {
             withCredentials([[
@@ -72,8 +72,12 @@ pipeline {
                     sh '''
                     set -eux
                     echo "📦 Running Terraform for ${ENV} environment..."
-                    ls -l
-
+                    
+                    # Debug: Show current directory and files
+                    echo "📁 Current directory: $(pwd)"
+                    echo "📄 Files in directory:"
+                    ls -la
+                    
                     terraform init -input=false
                     terraform validate
 
@@ -81,16 +85,21 @@ pipeline {
 
                     if [ ! -f "${TFVARS_FILE}" ]; then
                         echo "❌ ${TFVARS_FILE} not found!"
+                        echo "Available files:"
+                        ls -la *.tfvars 2>/dev/null || echo "No .tfvars files found"
                         exit 1
                     fi
 
                     echo "✅ Using ${TFVARS_FILE} for variables"
+                    echo "📝 File contents:"
+                    cat "${TFVARS_FILE}"
 
-                    # Use var-file instead of individual -var flags for most variables
+                    # FIX: Use -var-file instead of individual -var flags
                     terraform plan -input=false -out=tfplan \
                         -var-file="${TFVARS_FILE}" \
                         -var="db_password=${DB_PASS}"
-
+                    
+                    # Apply using the plan file (no need to repeat variables)
                     terraform apply -input=false -auto-approve tfplan
 
                     '''
