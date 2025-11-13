@@ -75,7 +75,7 @@ pipeline {
                   terraform plan -input=false -out=tfplan -var-file="${ENV}.tfvars"
                   terraform apply -input=false -auto-approve -var-file="${ENV}.tfvars"
                 else
-                  echo "⚙️ No tfvars file found — using default vars"
+                  echo "⚙️ No tfvars file found — using inline variable for env only"
                   terraform plan -input=false -out=tfplan -var="env=${ENV}"
                   terraform apply -input=false -auto-approve tfplan
                 fi
@@ -84,7 +84,6 @@ pipeline {
         }
     }
 }
-
         stage('Build Docker Image') {
             steps {
                 script {
