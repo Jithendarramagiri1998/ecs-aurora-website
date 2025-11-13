@@ -69,10 +69,10 @@ pipeline {
                 set -eux
                 echo "📦 Running Terraform Plan for ${ENV} environment..."
                 echo "📂 Current Directory: $(pwd)"
-                echo "🧾 Files in this directory:"
+                echo "🧾 Files:"
                 ls -l
 
-                terraform init -input=false || true
+                terraform init -input=false
                 terraform validate
 
                 if [ -f "${ENV}.tfvars" ]; then
@@ -95,7 +95,6 @@ pipeline {
         }
     }
 }
-
         stage('Build Docker Image') {
             steps {
                 script {
