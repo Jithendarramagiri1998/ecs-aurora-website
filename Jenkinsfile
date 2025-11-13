@@ -62,7 +62,7 @@ pipeline {
         }
 
         stage('Terraform Plan & Apply Infra') {
-    steps {
+            steps {
         dir("terraform/envs/${params.ENV}") {
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                 sh '''
