@@ -64,51 +64,45 @@ pipeline {
       stage('Terraform Plan & Apply Infra') {
     steps {
         dir("terraform/envs/${params.ENV}") {
-            withCredentials([
-                [
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'aws-jenkins-creds'
-                ],
-                [
-                    $class: 'StringBinding',
-                    credentialsId: 'DB_PASSWORD',
-                    variable: 'DB_PASS'
-                ]
-            ]) {
-                sh '''
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding', 
+                credentialsId: 'aws-jenkins-creds'
+            ]]) {
+                withCredentials([string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASS')]) {
+                    sh '''
                     set -eux
                     echo "📦 Running Terraform for ${ENV} environment..."
                     
-                    # Initialize and validate
-                    terraform init -input=false -upgrade
-                    terraform validate
-                    
+                    # Create staging.tfvars if it doesn't exist
                     TFVARS_FILE="${ENV}.tfvars"
-                    
                     if [ ! -f "${TFVARS_FILE}" ]; then
-                        echo "❌ ${TFVARS_FILE} not found!"
-                        exit 1
+                        echo "📝 Creating ${TFVARS_FILE}..."
+                        cat > "${TFVARS_FILE}" << EOF
+env                  = "staging"
+container_image      = "141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite"
+vpc_id               = "vpc-05299e9e75eab14c1"
+public_subnet_ids    = ["subnet-096fd24cd2bfa60d6", "subnet-0488ea7a446fd6fdd"]
+private_subnet_ids   = ["subnet-025488b679374292b", "subnet-0c6428f5e06768537"]
+db_host              = "ecs-aurora-aurora-cluster-dev.cluster-cela4qmqgtmv.us-east-1.rds.amazonaws.com"
+db_name              = "appdb"
+db_username          = "admin"
+db_password          = ""
+EOF
                     fi
                     
-                    echo "✅ Using ${TFVARS_FILE} for variables"
+                    echo "✅ Using ${TFVARS_FILE}"
+                    cat "${TFVARS_FILE}"
                     
-                    # Plan with dynamic image tag and secure DB password
-                    terraform plan \
-                        -input=false \
-                        -out=tfplan \
+                    terraform init -input=false
+                    terraform validate
+                    
+                    terraform plan -input=false -out=tfplan \
                         -var-file="${TFVARS_FILE}" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
                         -var="db_password=${DB_PASS}"
                     
-                    # Apply
-                    terraform apply \
-                        -input=false \
-                        -auto-approve \
-                        tfplan
-                    
-                    echo "✅ Terraform apply completed successfully!"
-                    terraform output
-                '''
+                    terraform apply -input=false -auto-approve tfplan
+                    '''
+                }
             }
         }
     }
