@@ -61,49 +61,54 @@ pipeline {
             }
         }
 
-       stage('Terraform Plan & Apply Infra') {
+      stage('Terraform Plan & Apply Infra') {
     steps {
         dir("terraform/envs/${params.ENV}") {
-            withCredentials([[
-                $class: 'AmazonWebServicesCredentialsBinding', 
-                credentialsId: 'aws-jenkins-creds'
-            ]]) {
-                withCredentials([string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASS')]) {
-                    sh '''
+            withCredentials([
+                [
+                    $class: 'AmazonWebServicesCredentialsBinding', 
+                    credentialsId: 'aws-jenkins-creds'
+                ],
+                [
+                    $class: 'StringBinding',
+                    credentialsId: 'DB_PASSWORD',
+                    variable: 'DB_PASS'
+                ]
+            ]) {
+                sh '''
                     set -eux
                     echo "📦 Running Terraform for ${ENV} environment..."
                     
-                    # Debug: Show current directory and files
-                    echo "📁 Current directory: $(pwd)"
-                    echo "📄 Files in directory:"
-                    ls -la
-                    
-                    terraform init -input=false
+                    # Initialize and validate
+                    terraform init -input=false -upgrade
                     terraform validate
-
+                    
                     TFVARS_FILE="${ENV}.tfvars"
-
+                    
                     if [ ! -f "${TFVARS_FILE}" ]; then
                         echo "❌ ${TFVARS_FILE} not found!"
-                        echo "Available files:"
-                        ls -la *.tfvars 2>/dev/null || echo "No .tfvars files found"
                         exit 1
                     fi
-
+                    
                     echo "✅ Using ${TFVARS_FILE} for variables"
-                    echo "📝 File contents:"
-                    cat "${TFVARS_FILE}"
-
-                    # FIX: Use -var-file instead of individual -var flags
-                    terraform plan -input=false -out=tfplan \
+                    
+                    # Plan with dynamic image tag and secure DB password
+                    terraform plan \
+                        -input=false \
+                        -out=tfplan \
                         -var-file="${TFVARS_FILE}" \
+                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
                         -var="db_password=${DB_PASS}"
                     
-                    # Apply using the plan file (no need to repeat variables)
-                    terraform apply -input=false -auto-approve tfplan
-
-                    '''
-                }
+                    # Apply
+                    terraform apply \
+                        -input=false \
+                        -auto-approve \
+                        tfplan
+                    
+                    echo "✅ Terraform apply completed successfully!"
+                    terraform output
+                '''
             }
         }
     }
