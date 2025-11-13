@@ -72,25 +72,28 @@ pipeline {
                     sh '''
                     set -eux
                     echo "📦 Running Terraform for ${ENV} environment..."
-                    echo "📂 Current Directory: $(pwd)"
                     ls -l
 
                     terraform init -input=false
                     terraform validate
 
-                    if [ -f "${ENV}.tfvars" ]; then
-                        echo "✅ Found ${ENV}.tfvars file — applying with it..."
-                        terraform plan -input=false -out=tfplan \
-                            -var "db_password=${DB_PASS}" \
-                            -var-file="${ENV}.tfvars"
+                    TFVARS_FILE="${ENV}.tfvars"
 
-                        terraform apply -input=false -auto-approve \
-                            -var "db_password=${DB_PASS}" \
-                            -var-file="${ENV}.tfvars"
-                    else
-                        echo "❌ ${ENV}.tfvars file not found! Exiting..."
+                    if [ ! -f "${TFVARS_FILE}" ]; then
+                        echo "❌ ${TFVARS_FILE} not found!"
                         exit 1
                     fi
+
+                    echo "✅ Using ${TFVARS_FILE} for variables"
+
+                    # Optional: override container_image dynamically from Jenkins build
+                    terraform plan -input=false -out=tfplan -var-file="${TFVARS_FILE}" \
+                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
+                        -var "db_password=${DB_PASS}"
+
+                    terraform apply -input=false -auto-approve -var-file="${TFVARS_FILE}" \
+                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
+                        -var "db_password=${DB_PASS}"
                     '''
                 }
             }
