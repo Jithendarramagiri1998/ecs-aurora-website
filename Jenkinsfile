@@ -69,17 +69,16 @@ pipeline {
                 set -eux
                 echo "📦 Running Terraform Plan for ${ENV} environment..."
 
-                # Ensure Terraform initialized
                 terraform init -input=false || true
 
-                # Check if tfvars file exists
+                # If tfvars file exists, use it
                 if [ -f "${ENV}.tfvars" ]; then
-                  echo "📂 Found ${ENV}.tfvars file"
-                  terraform plan -input=false -out=tfplan -var-file="${ENV}.tfvars" -var="image_tag=${IMAGE_TAG}"
-                  terraform apply -input=false -auto-approve -var-file="${ENV}.tfvars" -var="image_tag=${IMAGE_TAG}"
+                  echo "📂 Found ${ENV}.tfvars file — applying with it..."
+                  terraform plan -input=false -out=tfplan -var-file="${ENV}.tfvars" -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
+                  terraform apply -input=false -auto-approve -var-file="${ENV}.tfvars" -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
                 else
-                  echo "⚙️ No tfvars file found — using defaults"
-                  terraform plan -input=false -out=tfplan -var="env=${ENV}" -var="image_tag=${IMAGE_TAG}"
+                  echo "⚙️ No tfvars file found — using inline vars"
+                  terraform plan -input=false -out=tfplan -var="env=${ENV}" -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
                   terraform apply -input=false -auto-approve tfplan
                 fi
                 '''
@@ -87,7 +86,6 @@ pipeline {
         }
     }
 }
-
         stage('Build Docker Image') {
             steps {
                 script {
