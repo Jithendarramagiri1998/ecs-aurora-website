@@ -109,6 +109,7 @@ terraform
 * **AWS CLI** configured (`aws configure`)
 * **Docker** installed
 * **Domain registered in Route53 (optional)** for DNS setup
+* **S3 Setup** create your own S3 bucket in console
 ---
 
 ## 🪜 **Setup Steps to deploy with jenkins CI/CD flow**
