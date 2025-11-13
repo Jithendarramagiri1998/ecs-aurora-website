@@ -62,21 +62,24 @@ pipeline {
         }
 
         stage('Terraform Plan & Apply Infra') {
-            steps {
+    steps {
         dir("terraform/envs/${params.ENV}") {
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
                 sh '''
                 set -eux
-                echo "📦 Running Terraform Plan for ${ENV}..."
+                echo "📦 Running Terraform Plan for ${ENV} environment..."
+
+                # Ensure Terraform initialized
+                terraform init -input=false || true
 
                 # Check if tfvars file exists
                 if [ -f "${ENV}.tfvars" ]; then
-                  echo "📂 Using ${ENV}.tfvars"
-                  terraform plan -input=false -out=tfplan -var-file="${ENV}.tfvars"
-                  terraform apply -input=false -auto-approve -var-file="${ENV}.tfvars"
+                  echo "📂 Found ${ENV}.tfvars file"
+                  terraform plan -input=false -out=tfplan -var-file="${ENV}.tfvars" -var="image_tag=${IMAGE_TAG}"
+                  terraform apply -input=false -auto-approve -var-file="${ENV}.tfvars" -var="image_tag=${IMAGE_TAG}"
                 else
-                  echo "⚙️ No tfvars file found — using inline variable for env only"
-                  terraform plan -input=false -out=tfplan -var="env=${ENV}"
+                  echo "⚙️ No tfvars file found — using defaults"
+                  terraform plan -input=false -out=tfplan -var="env=${ENV}" -var="image_tag=${IMAGE_TAG}"
                   terraform apply -input=false -auto-approve tfplan
                 fi
                 '''
@@ -84,6 +87,7 @@ pipeline {
         }
     }
 }
+
         stage('Build Docker Image') {
             steps {
                 script {
