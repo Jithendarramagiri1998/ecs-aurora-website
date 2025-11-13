@@ -64,81 +64,41 @@ pipeline {
         stage('Terraform Plan & Apply Infra') {
     steps {
         dir("terraform/envs/${params.ENV}") {
-            withCredentials([
-                [
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'aws-jenkins-creds'
-                ],
-                [
-                    $class: 'StringBinding',
-                    credentialsId: 'DB_PASSWORD',
-                    variable: 'DB_PASS'
-                ]
-            ]) {
-                sh '''
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding', 
+                credentialsId: 'aws-jenkins-creds'
+            ]]) {
+                withCredentials([string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASS')]) {
+                    sh '''
                     set -eux
                     echo "📦 Running Terraform for ${ENV} environment..."
-                    echo "📝 ECR Repo: ${ECR_REPO}"
-                    echo "🏷️  Image Tag: ${IMAGE_TAG}"
-                    
-                    # List files for debugging
-                    echo "📁 Current directory contents:"
-                    ls -la
-                    
-                    # Initialize Terraform
-                    echo "🔧 Initializing Terraform..."
-                    terraform init -input=false -upgrade
-                    
-                    # Validate configuration
-                    echo "✅ Validating Terraform configuration..."
+                    ls -l
+
+                    terraform init -input=false
                     terraform validate
-                    
-                    # Check if tfvars file exists
+
                     TFVARS_FILE="${ENV}.tfvars"
+
                     if [ ! -f "${TFVARS_FILE}" ]; then
-                        echo "❌ ${TFVARS_FILE} not found in $(pwd)!"
-                        echo "Available .tfvars files:"
-                        ls -la *.tfvars 2>/dev/null || echo "No .tfvars files found"
+                        echo "❌ ${TFVARS_FILE} not found!"
                         exit 1
                     fi
-                    
+
                     echo "✅ Using ${TFVARS_FILE} for variables"
-                    
-                    # Create plan with dynamic image tag and DB password
-                    echo "📋 Creating Terraform plan..."
-                    terraform plan \
-                        -input=false \
-                        -out=tfplan \
+
+                    # Use var-file instead of individual -var flags for most variables
+                    terraform plan -input=false -out=tfplan \
                         -var-file="${TFVARS_FILE}" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
-                        -var="db_password=${DB_PASS}" \
-                        -var="env=${ENV}"
-                    
-                    # Show plan summary
-                    echo "📊 Plan summary:"
-                    terraform show -no-color tfplan | grep -E "(Plan:|#|~|-/+)"
-                    
-                    # Apply the plan
-                    echo "🚀 Applying Terraform configuration..."
-                    terraform apply \
-                        -input=false \
-                        -auto-approve \
-                        -var-file="${TFVARS_FILE}" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
-                        -var="db_password=${DB_PASS}" \
-                        -var="env=${ENV}"
-                    
-                    echo "✅ Terraform apply completed successfully!"
-                    
-                    # Show outputs
-                    echo "📄 Terraform outputs:"
-                    terraform output
-                '''
+                        -var="db_password=${DB_PASS}"
+
+                    terraform apply -input=false -auto-approve tfplan
+
+                    '''
+                }
             }
         }
     }
 }
-
         stage('Build Docker Image') {
             steps {
                 script {
