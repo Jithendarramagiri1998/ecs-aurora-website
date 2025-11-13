@@ -68,24 +68,28 @@ pipeline {
                 sh '''
                 set -eux
                 echo "📦 Running Terraform Plan for ${ENV} environment..."
+                echo "📂 Current directory: $(pwd)"
+                echo "🧾 Files here:"
+                ls -lh
 
                 terraform init -input=false || true
 
                 # If tfvars file exists, use it
-                if [ -f "terraform/envs/${ENV}/${ENV}.tfvars" ]; then
-  echo "📂 Found terraform/envs/${ENV}/${ENV}.tfvars file — applying..."
-  terraform plan -input=false -out=tfplan \
-    -var-file="terraform/envs/${ENV}/${ENV}.tfvars" \
-    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-  terraform apply -input=false -auto-approve \
-    -var-file="terraform/envs/${ENV}/${ENV}.tfvars" \
-    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-else
-  echo "⚙️ No tfvars file found — using inline vars"
-  terraform plan -input=false -out=tfplan -var="env=${ENV}" -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
-  terraform apply -input=false -auto-approve tfplan
-fi
-
+                if [ -f "${ENV}.tfvars" ]; then
+                  echo "✅ Found ${ENV}.tfvars file — applying..."
+                  terraform plan -input=false -out=tfplan \
+                    -var-file="${ENV}.tfvars" \
+                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
+                  terraform apply -input=false -auto-approve \
+                    -var-file="${ENV}.tfvars" \
+                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
+                else
+                  echo "⚙️ No tfvars file found — using inline vars"
+                  terraform plan -input=false -out=tfplan \
+                    -var="env=${ENV}" \
+                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}"
+                  terraform apply -input=false -auto-approve tfplan
+                fi
                 '''
             }
         }
