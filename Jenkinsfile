@@ -88,12 +88,13 @@ pipeline {
 
                     # Optional: override container_image dynamically from Jenkins build
                     terraform plan -input=false -out=tfplan -var-file="${TFVARS_FILE}" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
-                        -var "db_password=${DB_PASS}"
+                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
+                    -var "db_password=${DB_PASS}"
+                
+                terraform apply -input=false -auto-approve -var-file="${TFVARS_FILE}" \
+                    -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
+                    -var "db_password=${DB_PASS}"
 
-                    terraform apply -input=false -auto-approve -var-file="${TFVARS_FILE}" \
-                        -var="container_image=${ECR_REPO}:${IMAGE_TAG}" \
-                        -var "db_password=${DB_PASS}"
                     '''
                 }
             }
