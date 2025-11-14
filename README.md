@@ -11,6 +11,11 @@ It follows **best practices** for:
 - Centralized logging and monitoring using CloudWatch
 
 ---
+## Project Architecture Diagram
+
+![Architecture](images/architecture-diagram.png)
+
+---
 
 ## 🎯 Project Goals / Requirements
 
