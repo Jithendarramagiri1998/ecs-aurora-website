@@ -62,8 +62,7 @@ module "ecs" {
 # Aurora MySQL Cluster (STAGING)
 #############################################
 module "aurora" {
-  source = "../../modules/aurora"
-
+  source             = "../../modules/aurora"
   project_name       = var.project_name
   env                = var.env
 
@@ -72,6 +71,7 @@ module "aurora" {
 
   ecs_sg_id          = module.ecs.ecs_sg_id
   db_password        = var.db_password
+  kms_key_arn        = aws_kms_key.aurora.arn
 }
 
 #############################################
