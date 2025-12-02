@@ -506,7 +506,7 @@ Always re-run the pipeline after fixing errors to verify successful deployment.
 
 # Loadbalcers to access Dev and Stagging ![Image](images/Loadbalcers.png) 
 
-# ECS Couster ![Image](images/ESC_Clusters.png) 
+# ECS Cluster ![Image](images/ESC_Cluster.png) 
 
 # VPC Dev and Stagging ![Image](images/VPC_Dashboard.png)
 
