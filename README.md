@@ -493,6 +493,27 @@ If you encounter any additional issues during execution or deployment, note them
 Always re-run the pipeline after fixing errors to verify successful deployment.
 
 ---
+
+## 📸 12. Output Screenshots (Add Here)
+
+# Dev Output Page ![Image](images/Dev_Output_Page.png) 
+
+# Stagging Output Page ![Image](images/Stagging_Output_Page.png)
+
+# Jenkins Pipelines Success Dev ![Image](images/dev_Pipelines_Success.png)
+
+# Jenkins Pipelines Success Stagging ![Image](images/stagging_Pipelines_Success.png)
+
+# Loadbalcers to access Dev and Stagging ![Image](images/Loadbalcers.png) 
+
+# ECS Couster ![Image](images/ESC_Clusters.png) 
+
+# VPC Dev and Stagging ![Image](images/VPC_Dashboard.png)
+
+# Aurora RDS ![Image](images/Aurora_Dashboard.png)
+
+---
+
 ## 👨‍💻 **Author**
 
 **Ramagiri Jithendar** — DevOps Engineer
