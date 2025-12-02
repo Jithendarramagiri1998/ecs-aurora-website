@@ -1,0 +1,6 @@
+env             = "dev"
+project_name    = "ecs-aurora"
+container_image = "141559732042.dkr.ecr.us-east-1.amazonaws.com/mywebsite:latest"
+db_username     = "admin"
+db_name         = "appdb"
+db_password     = "MySecurePassword123!"
