@@ -46,17 +46,16 @@ module "ecs" {
   env                = var.env
   container_image    = var.container_image
 
-  # Network (coming from staging VPC)
   vpc_id             = module.vpc.vpc_id
   public_subnet_ids  = module.vpc.public_subnet_ids
   private_subnet_ids = module.vpc.private_app_subnet_ids
 
-  # DB details (Aurora will create DB endpoint)
-  db_host     = module.aurora.db_cluster_endpoint
+  db_host     = module.aurora.aurora_endpoint
   db_name     = var.db_name
   db_username = var.db_username
   db_password = var.db_password
 }
+
 
 #############################################
 # Aurora MySQL Cluster (STAGING)
