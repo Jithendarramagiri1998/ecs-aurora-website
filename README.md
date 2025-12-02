@@ -504,7 +504,7 @@ Always re-run the pipeline after fixing errors to verify successful deployment.
 
 # Jenkins Pipelines Success Stagging ![Image](images/stagging_Pipelines_Success.png)
 
-# Loadbalcers to access Dev and Stagging ![Image](images/Loadbalcers.png) 
+# Loadbalancers to access Dev and Stagging ![Image](images/Loadbalcers.png) 
 
 # ECS Cluster ![Image](images/ESC_Cluster.png) 
 
